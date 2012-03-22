@@ -89,7 +89,6 @@ public class PipelinedPartition implements IFrameWriter, IPartition {
 
     @Override
     public void fail() throws HyracksDataException {
-        ensureConnected();
         failed = true;
         if (delegate != null) {
             delegate.fail();
