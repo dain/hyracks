@@ -194,7 +194,7 @@ public class ExternalGroupOperatorDescriptor extends AbstractOperatorDescriptor 
 
                 @Override
                 public void fail() throws HyracksDataException {
-                    throw new HyracksDataException("failed");
+                    //do nothing for failures
                 }
 
                 @Override
