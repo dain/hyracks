@@ -41,5 +41,6 @@ public enum PhysicalOperatorTag {
     WRITE_RESULT,
     INSERT_DELETE,
     INDEX_INSERT_DELETE,
-    UPDATE
+	UPDATE,
+    INVERTED_INDEX_SEARCH
 }
