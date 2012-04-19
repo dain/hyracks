@@ -345,7 +345,9 @@ public class TOccurrenceSearcher implements IInvertedIndexSearcher {
 
             if (advanceCursor) {
                 invListTidx++;
-                invListCursor.next();
+                if (invListCursor.hasNext()) {
+                	invListCursor.next();
+                }
             }
         }
 
@@ -438,7 +440,9 @@ public class TOccurrenceSearcher implements IInvertedIndexSearcher {
 
             if (advanceCursor) {
                 invListTidx++;
-                invListCursor.next();
+                if (invListCursor.hasNext()) {
+                	invListCursor.next();
+                }
             }
         }
 
