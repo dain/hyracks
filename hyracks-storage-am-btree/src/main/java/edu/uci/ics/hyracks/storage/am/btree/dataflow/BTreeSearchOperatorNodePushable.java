@@ -25,6 +25,7 @@ import edu.uci.ics.hyracks.dataflow.common.comm.io.ArrayTupleBuilder;
 import edu.uci.ics.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import edu.uci.ics.hyracks.dataflow.common.comm.io.FrameTupleAppender;
 import edu.uci.ics.hyracks.dataflow.common.comm.util.FrameUtils;
+import edu.uci.ics.hyracks.dataflow.common.data.accessors.FrameTupleReference;
 import edu.uci.ics.hyracks.dataflow.common.data.accessors.ITupleReference;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputUnaryOutputOperatorNodePushable;
 import edu.uci.ics.hyracks.storage.am.btree.api.IBTreeLeafFrame;
@@ -63,10 +64,12 @@ public class BTreeSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutp
 	protected ITreeIndexAccessor indexAccessor;
 
 	protected RecordDescriptor recDesc;
+	protected FrameTupleReference tuple;
+	protected final boolean retainInput;
 
     public BTreeSearchOperatorNodePushable(AbstractTreeIndexOperatorDescriptor opDesc, IHyracksTaskContext ctx,
             int partition, IRecordDescriptorProvider recordDescProvider, boolean isForward, int[] lowKeyFields,
-            int[] highKeyFields, boolean lowKeyInclusive, boolean highKeyInclusive) {
+            int[] highKeyFields, boolean lowKeyInclusive, boolean highKeyInclusive, boolean retainInput) {
         treeIndexHelper = (TreeIndexDataflowHelper) opDesc.getIndexDataflowHelperFactory().createIndexDataflowHelper(
                 opDesc, ctx, partition, false);
         this.isForward = isForward;
@@ -81,6 +84,7 @@ public class BTreeSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutp
             highKey = new PermutingFrameTupleReference();
             highKey.setFieldPermutation(highKeyFields);
         }
+        this.retainInput = retainInput;
     }
 
     @Override
@@ -113,6 +117,9 @@ public class BTreeSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutp
             treeIndexHelper.deinit();
             throw new HyracksDataException(e);
         }
+		if (retainInput) {
+			tuple = new FrameTupleReference();
+		}
     }
 
     protected void setCursor() {
@@ -124,6 +131,12 @@ public class BTreeSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutp
             tb.reset();
             cursor.next();
 
+            if (retainInput) {
+            	for (int i = 0; i < tuple.getFieldCount(); i++) {
+            		dos.write(tuple.getFieldData(i), tuple.getFieldStart(i), tuple.getFieldLength(i));
+                    tb.addFieldEndOffset();
+            	}
+            }
             ITupleReference tuple = cursor.getTuple();
             for (int i = 0; i < tuple.getFieldCount(); i++) {
                 dos.write(tuple.getFieldData(i), tuple.getFieldStart(i), tuple.getFieldLength(i));
@@ -156,6 +169,9 @@ public class BTreeSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutp
                 rangePred.setHighKey(highKey, highKeyInclusive);
                 cursor.reset();
                 indexAccessor.search(cursor, rangePred);
+                if (retainInput) {
+                	tuple.reset(accessor, i);
+                }
                 writeSearchResults();
             }
         } catch (Exception e) {

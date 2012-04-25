@@ -50,6 +50,7 @@ public class InvertedIndexSearchOperatorNodePushable extends AbstractUnaryInputU
 
     private final IInvertedIndexSearchModifier searchModifier;
     private final IBinaryTokenizer queryTokenizer;
+    private final boolean retainInput;
     private TOccurrenceSearcher searcher;
     private IInvertedIndexResultCursor resultCursor;
 
@@ -62,8 +63,8 @@ public class InvertedIndexSearchOperatorNodePushable extends AbstractUnaryInputU
 
     public InvertedIndexSearchOperatorNodePushable(AbstractInvertedIndexOperatorDescriptor opDesc,
             IHyracksTaskContext ctx, int partition, int queryField, IInvertedIndexSearchModifier searchModifier,
-            IBinaryTokenizer queryTokenizer, IRecordDescriptorProvider recordDescProvider) {
-        this.opDesc = opDesc;
+            IBinaryTokenizer queryTokenizer, IRecordDescriptorProvider recordDescProvider, boolean retainInput) {
+    	this.opDesc = opDesc;
         btreeDataflowHelper = (TreeIndexDataflowHelper) opDesc.getIndexDataflowHelperFactory()
                 .createIndexDataflowHelper(opDesc, ctx, partition, false);
         invIndexDataflowHelper = new InvertedIndexDataflowHelper(btreeDataflowHelper, opDesc, ctx, partition, false);
@@ -71,6 +72,7 @@ public class InvertedIndexSearchOperatorNodePushable extends AbstractUnaryInputU
         this.queryField = queryField;
         this.searchModifier = searchModifier;
         this.queryTokenizer = queryTokenizer;
+        this.retainInput = retainInput;
         this.recordDescProvider = recordDescProvider;
     }
 
@@ -124,6 +126,12 @@ public class InvertedIndexSearchOperatorNodePushable extends AbstractUnaryInputU
             tb.reset();
             ITupleReference invListElement = resultCursor.getTuple();
             int invListFields = opDesc.getInvListsTypeTraits().length;
+            if (retainInput) {
+            	for (int i = 0; i < tuple.getFieldCount(); i++) {
+            		dos.write(tuple.getFieldData(i), tuple.getFieldStart(i), tuple.getFieldLength(i));
+                    tb.addFieldEndOffset();
+            	}
+            }
             for (int i = 0; i < invListFields; i++) {
                 dos.write(invListElement.getFieldData(i), invListElement.getFieldStart(i),
                         invListElement.getFieldLength(i));

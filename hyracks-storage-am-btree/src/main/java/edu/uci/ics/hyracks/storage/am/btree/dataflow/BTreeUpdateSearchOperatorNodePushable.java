@@ -17,9 +17,9 @@ public class BTreeUpdateSearchOperatorNodePushable extends BTreeSearchOperatorNo
 			IHyracksTaskContext ctx, int partition,
 			IRecordDescriptorProvider recordDescProvider, boolean isForward,
 			int[] lowKeyFields, int[] highKeyFields, boolean lowKeyInclusive,
-			boolean highKeyInclusive, ITupleUpdater tupleUpdater) {
+			boolean highKeyInclusive, boolean retainInput, ITupleUpdater tupleUpdater) {
 		super(opDesc, ctx, partition, recordDescProvider, isForward, lowKeyFields,
-				highKeyFields, lowKeyInclusive, highKeyInclusive);
+				highKeyFields, lowKeyInclusive, highKeyInclusive, retainInput);
 		this.tupleUpdater = tupleUpdater;
 	}
 
@@ -35,6 +35,13 @@ public class BTreeUpdateSearchOperatorNodePushable extends BTreeSearchOperatorNo
             cursor.next();
             ITupleReference tuple = cursor.getTuple();
             tupleUpdater.updateTuple(tuple);
+            
+            if (retainInput) {
+            	for (int i = 0; i < tuple.getFieldCount(); i++) {
+            		dos.write(tuple.getFieldData(i), tuple.getFieldStart(i), tuple.getFieldLength(i));
+                    tb.addFieldEndOffset();
+            	}
+            }
             for (int i = 0; i < tuple.getFieldCount(); i++) {
                 dos.write(tuple.getFieldData(i), tuple.getFieldStart(i), tuple.getFieldLength(i));
                 tb.addFieldEndOffset();

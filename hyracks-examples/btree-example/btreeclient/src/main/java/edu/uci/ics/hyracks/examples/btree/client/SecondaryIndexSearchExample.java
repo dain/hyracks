@@ -185,7 +185,7 @@ public class SecondaryIndexSearchExample {
         BTreeSearchOperatorDescriptor secondarySearchOp = new BTreeSearchOperatorDescriptor(spec, secondaryRecDesc,
                 storageManager, indexRegistryProvider, secondarySplitProvider, secondaryInteriorFrameFactory,
                 secondaryLeafFrameFactory, secondaryTypeTraits, searchComparatorFactories, true, secondaryLowKeyFields,
-                secondaryHighKeyFields, true, true, dataflowHelperFactory);
+                secondaryHighKeyFields, true, true, dataflowHelperFactory, false);
         JobHelper.createPartitionConstraint(spec, secondarySearchOp, splitNCs);
 
         // secondary index will output tuples with [UTF8String, Integer]
@@ -201,7 +201,7 @@ public class SecondaryIndexSearchExample {
         BTreeSearchOperatorDescriptor primarySearchOp = new BTreeSearchOperatorDescriptor(spec, primaryRecDesc,
                 storageManager, indexRegistryProvider, primarySplitProvider, primaryInteriorFrameFactory,
                 primaryLeafFrameFactory, primaryTypeTraits, primaryComparatorFactories, true, primaryLowKeyFields,
-                primaryHighKeyFields, true, true, dataflowHelperFactory);
+                primaryHighKeyFields, true, true, dataflowHelperFactory, false);
         JobHelper.createPartitionConstraint(spec, primarySearchOp, splitNCs);
 
         // have each node print the results of its respective B-Tree

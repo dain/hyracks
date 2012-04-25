@@ -34,19 +34,21 @@ public class BTreeSearchOperatorDescriptor extends AbstractTreeIndexOperatorDesc
 
     private static final long serialVersionUID = 1L;
 
-    protected boolean isForward;
-    protected int[] lowKeyFields; // fields in input tuple to be used as low keys
-    protected int[] highKeyFields; // fields in input tuple to be used as high
-    // keys
-    protected boolean lowKeyInclusive;
-    protected boolean highKeyInclusive;
+    protected final boolean isForward;
+    // fields in input tuple to be used as low keys
+    protected final int[] lowKeyFields;
+    // fields in input tuple to be used as high keys
+    protected final int[] highKeyFields;
+    protected final boolean lowKeyInclusive;
+    protected final boolean highKeyInclusive;
+    protected final boolean retainInput;
 
     public BTreeSearchOperatorDescriptor(JobSpecification spec, RecordDescriptor recDesc,
             IStorageManagerInterface storageManager, IIndexRegistryProvider<IIndex> indexRegistryProvider,
             IFileSplitProvider fileSplitProvider, ITreeIndexFrameFactory interiorFrameFactory,
             ITreeIndexFrameFactory leafFrameFactory, ITypeTraits[] typeTraits,
             IBinaryComparatorFactory[] comparatorFactories, boolean isForward, int[] lowKeyFields, int[] highKeyFields,
-            boolean lowKeyInclusive, boolean highKeyInclusive, IIndexDataflowHelperFactory dataflowHelperFactory) {
+            boolean lowKeyInclusive, boolean highKeyInclusive, IIndexDataflowHelperFactory dataflowHelperFactory, boolean retainInput) {
         super(spec, 1, 1, recDesc, storageManager, indexRegistryProvider, fileSplitProvider, interiorFrameFactory,
                 leafFrameFactory, typeTraits, comparatorFactories, dataflowHelperFactory);
         this.isForward = isForward;
@@ -54,12 +56,13 @@ public class BTreeSearchOperatorDescriptor extends AbstractTreeIndexOperatorDesc
         this.highKeyFields = highKeyFields;
         this.lowKeyInclusive = lowKeyInclusive;
         this.highKeyInclusive = highKeyInclusive;
+        this.retainInput = retainInput;
     }
 
     @Override
     public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx, IRecordDescriptorProvider recordDescProvider,
             int partition, int nPartitions) {
         return new BTreeSearchOperatorNodePushable(this, ctx, partition, recordDescProvider, isForward, lowKeyFields,
-                highKeyFields, lowKeyInclusive, highKeyInclusive);
+                highKeyFields, lowKeyInclusive, highKeyInclusive, retainInput);
     }
 }

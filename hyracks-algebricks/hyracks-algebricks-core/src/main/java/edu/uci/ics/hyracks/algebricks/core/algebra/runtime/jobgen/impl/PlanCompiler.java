@@ -52,6 +52,7 @@ public class PlanCompiler {
         reviseEdges(builder);
         operatorVisitedToParents.clear();
         builder.buildSpec(rootOps);
+        spec.setConnectorPolicyAssignmentPolicy(new ConnectorPolicyAssignmentPolicy());
         return spec;
     }
 

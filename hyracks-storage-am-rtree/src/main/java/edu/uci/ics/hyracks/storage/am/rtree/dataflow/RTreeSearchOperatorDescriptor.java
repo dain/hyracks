@@ -34,22 +34,25 @@ public class RTreeSearchOperatorDescriptor extends AbstractTreeIndexOperatorDesc
 
     private static final long serialVersionUID = 1L;
 
-    private int[] keyFields; // fields in input tuple to be used as keys
+    private final int[] keyFields; // fields in input tuple to be used as keys
 
+    private final boolean retainInput;
+    
     public RTreeSearchOperatorDescriptor(JobSpecification spec, RecordDescriptor recDesc,
             IStorageManagerInterface storageManager, IIndexRegistryProvider<IIndex> indexRegistryProvider,
             IFileSplitProvider fileSplitProvider, ITreeIndexFrameFactory interiorFrameFactory,
             ITreeIndexFrameFactory leafFrameFactory, ITypeTraits[] typeTraits,
             IBinaryComparatorFactory[] comparatorFactories, int[] keyFields,
-            IIndexDataflowHelperFactory dataflowHelperFactory) {
+            IIndexDataflowHelperFactory dataflowHelperFactory, boolean retainInput) {
         super(spec, 1, 1, recDesc, storageManager, indexRegistryProvider, fileSplitProvider, interiorFrameFactory,
                 leafFrameFactory, typeTraits, comparatorFactories, dataflowHelperFactory);
         this.keyFields = keyFields;
+        this.retainInput = retainInput;
     }
 
     @Override
     public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
             IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
-        return new RTreeSearchOperatorNodePushable(this, ctx, partition, recordDescProvider, keyFields);
+        return new RTreeSearchOperatorNodePushable(this, ctx, partition, recordDescProvider, keyFields, retainInput);
     }
 }

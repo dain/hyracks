@@ -27,6 +27,7 @@ import edu.uci.ics.hyracks.dataflow.common.comm.io.ArrayTupleBuilder;
 import edu.uci.ics.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import edu.uci.ics.hyracks.dataflow.common.comm.io.FrameTupleAppender;
 import edu.uci.ics.hyracks.dataflow.common.comm.util.FrameUtils;
+import edu.uci.ics.hyracks.dataflow.common.data.accessors.FrameTupleReference;
 import edu.uci.ics.hyracks.dataflow.common.data.accessors.ITupleReference;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputUnaryOutputOperatorNodePushable;
 import edu.uci.ics.hyracks.storage.am.common.api.ITreeIndexAccessor;
@@ -61,9 +62,11 @@ public class RTreeSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutp
     private ITreeIndexAccessor indexAccessor;
 
     private RecordDescriptor recDesc;
+    protected FrameTupleReference tuple;
+    private final boolean retainInput;
 
     public RTreeSearchOperatorNodePushable(AbstractTreeIndexOperatorDescriptor opDesc, IHyracksTaskContext ctx,
-            int partition, IRecordDescriptorProvider recordDescProvider, int[] keyFields) {
+            int partition, IRecordDescriptorProvider recordDescProvider, int[] keyFields, boolean retainInput) {
         treeIndexHelper = (TreeIndexDataflowHelper) opDesc.getIndexDataflowHelperFactory().createIndexDataflowHelper(
                 opDesc, ctx, partition, false);
         this.recDesc = recordDescProvider.getInputRecordDescriptor(opDesc.getOperatorId(), 0);
@@ -71,6 +74,7 @@ public class RTreeSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutp
             searchKey = new PermutingFrameTupleReference();
             searchKey.setFieldPermutation(keyFields);
         }
+        this.retainInput = retainInput;
     }
 
     @Override
@@ -108,6 +112,9 @@ public class RTreeSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutp
             treeIndexHelper.deinit();
             throw new HyracksDataException(e);
         }
+        if (retainInput) {
+			tuple = new FrameTupleReference();
+		}
     }
 
     private void writeSearchResults() throws Exception {
@@ -115,6 +122,12 @@ public class RTreeSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutp
             tb.reset();
             cursor.next();
 
+            if (retainInput) {
+            	for (int i = 0; i < tuple.getFieldCount(); i++) {
+            		dos.write(tuple.getFieldData(i), tuple.getFieldStart(i), tuple.getFieldLength(i));
+                    tb.addFieldEndOffset();
+            	}
+            }
             ITupleReference frameTuple = cursor.getTuple();
             for (int i = 0; i < frameTuple.getFieldCount(); i++) {
                 dos.write(frameTuple.getFieldData(i), frameTuple.getFieldStart(i), frameTuple.getFieldLength(i));
@@ -143,6 +156,9 @@ public class RTreeSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutp
                 searchPred.setSearchKey(searchKey);
                 cursor.reset();
                 indexAccessor.search(cursor, searchPred);
+                if (retainInput) {
+                	tuple.reset(accessor, i);
+                }
                 writeSearchResults();
             }
         } catch (Exception e) {

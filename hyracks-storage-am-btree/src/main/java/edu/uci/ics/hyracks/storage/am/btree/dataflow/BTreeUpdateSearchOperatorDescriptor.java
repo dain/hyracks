@@ -27,10 +27,10 @@ public class BTreeUpdateSearchOperatorDescriptor extends BTreeSearchOperatorDesc
             ITreeIndexFrameFactory leafFrameFactory, ITypeTraits[] typeTraits,
             IBinaryComparatorFactory[] comparatorFactories, boolean isForward, int[] lowKeyFields, int[] highKeyFields,
             boolean lowKeyInclusive, boolean highKeyInclusive, IIndexDataflowHelperFactory dataflowHelperFactory,
-            ITupleUpdaterFactory tupleUpdaterFactory) {
+            boolean retainInput, ITupleUpdaterFactory tupleUpdaterFactory) {
         super(spec, recDesc, storageManager, indexRegistryProvider, fileSplitProvider, interiorFrameFactory,
                 leafFrameFactory, typeTraits, comparatorFactories, isForward, lowKeyFields, highKeyFields, lowKeyInclusive,
-                highKeyInclusive, dataflowHelperFactory);
+                highKeyInclusive, dataflowHelperFactory, retainInput);
         this.tupleUpdaterFactory = tupleUpdaterFactory;
     }
 
@@ -38,6 +38,6 @@ public class BTreeUpdateSearchOperatorDescriptor extends BTreeSearchOperatorDesc
     public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx, IRecordDescriptorProvider recordDescProvider,
             int partition, int nPartitions) {
         return new BTreeUpdateSearchOperatorNodePushable(this, ctx, partition, recordDescProvider, isForward, lowKeyFields,
-                highKeyFields, lowKeyInclusive, highKeyInclusive, tupleUpdaterFactory.createTupleUpdater());
+                highKeyFields, lowKeyInclusive, highKeyInclusive, retainInput, tupleUpdaterFactory.createTupleUpdater());
     }
 }

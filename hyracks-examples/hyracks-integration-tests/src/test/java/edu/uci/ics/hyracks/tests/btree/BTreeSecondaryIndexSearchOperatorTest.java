@@ -204,7 +204,7 @@ public class BTreeSecondaryIndexSearchOperatorTest extends AbstractIntegrationTe
         BTreeSearchOperatorDescriptor primaryBtreeSearchOp = new BTreeSearchOperatorDescriptor(spec, primaryRecDesc,
                 storageManager, indexRegistryProvider, primaryBtreeSplitProvider, primaryInteriorFrameFactory,
                 primaryLeafFrameFactory, primaryTypeTraits, primaryComparatorFactories, true, lowKeyFields,
-                highKeyFields, true, true, dataflowHelperFactory);
+                highKeyFields, true, true, dataflowHelperFactory, false);
         PartitionConstraintHelper.addAbsoluteLocationConstraint(spec, primaryBtreeSearchOp, NC1_ID);
 
         // sort based on secondary keys
@@ -262,7 +262,7 @@ public class BTreeSecondaryIndexSearchOperatorTest extends AbstractIntegrationTe
                 secondaryRecDesc, storageManager, indexRegistryProvider, secondaryBtreeSplitProvider,
                 secondaryInteriorFrameFactory, secondaryLeafFrameFactory, secondaryTypeTraits,
                 secondaryComparatorFactories, true, secondaryLowKeyFields, secondaryHighKeyFields, true, true,
-                dataflowHelperFactory);
+                dataflowHelperFactory, false);
         PartitionConstraintHelper.addAbsoluteLocationConstraint(spec, secondaryBtreeSearchOp, NC1_ID);
 
         int[] primaryLowKeyFields = { 1 }; // second field from the tuples
@@ -274,7 +274,7 @@ public class BTreeSecondaryIndexSearchOperatorTest extends AbstractIntegrationTe
         BTreeSearchOperatorDescriptor primaryBtreeSearchOp = new BTreeSearchOperatorDescriptor(spec, primaryRecDesc,
                 storageManager, indexRegistryProvider, primaryBtreeSplitProvider, primaryInteriorFrameFactory,
                 primaryLeafFrameFactory, primaryTypeTraits, primaryComparatorFactories, true, primaryLowKeyFields,
-                primaryHighKeyFields, true, true, dataflowHelperFactory);
+                primaryHighKeyFields, true, true, dataflowHelperFactory, false);
         PartitionConstraintHelper.addAbsoluteLocationConstraint(spec, primaryBtreeSearchOp, NC1_ID);
 
         IFileSplitProvider outSplits = new ConstantFileSplitProvider(new FileSplit[] { new FileSplit(NC1_ID,

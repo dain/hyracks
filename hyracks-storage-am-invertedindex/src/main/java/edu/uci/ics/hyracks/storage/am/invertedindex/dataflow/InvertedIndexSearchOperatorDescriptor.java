@@ -39,6 +39,7 @@ public class InvertedIndexSearchOperatorDescriptor extends AbstractInvertedIndex
     private final int queryField;
     private final IBinaryTokenizerFactory queryTokenizerFactory;
     private final IInvertedIndexSearchModifierFactory searchModifierFactory;
+    private final boolean retainInput;
 
     public InvertedIndexSearchOperatorDescriptor(JobSpecification spec,
             int queryField, IStorageManagerInterface storageManager, IFileSplitProvider btreeFileSplitProvider,
@@ -46,13 +47,14 @@ public class InvertedIndexSearchOperatorDescriptor extends AbstractInvertedIndex
             ITypeTraits[] tokenTypeTraits, IBinaryComparatorFactory[] tokenComparatorFactories,
             ITypeTraits[] invListsTypeTraits, IBinaryComparatorFactory[] invListComparatorFactories,
             IIndexDataflowHelperFactory btreeDataflowHelperFactory, IBinaryTokenizerFactory queryTokenizerFactory,
-            IInvertedIndexSearchModifierFactory searchModifierFactory, RecordDescriptor recDesc) {
+            IInvertedIndexSearchModifierFactory searchModifierFactory, RecordDescriptor recDesc, boolean retainInput) {
         super(spec, 1, 1, recDesc, storageManager, btreeFileSplitProvider, invListsFileSplitProvider,
                 indexRegistryProvider, tokenTypeTraits, tokenComparatorFactories, invListsTypeTraits,
                 invListComparatorFactories, btreeDataflowHelperFactory);
         this.queryField = queryField;
         this.queryTokenizerFactory = queryTokenizerFactory;
         this.searchModifierFactory = searchModifierFactory;
+        this.retainInput = retainInput;
     }
 
     @Override
@@ -61,6 +63,6 @@ public class InvertedIndexSearchOperatorDescriptor extends AbstractInvertedIndex
         IBinaryTokenizer tokenizer = queryTokenizerFactory.createTokenizer();
         IInvertedIndexSearchModifier searchModifier = searchModifierFactory.createSearchModifier();
         return new InvertedIndexSearchOperatorNodePushable(this, ctx, partition, queryField, searchModifier, tokenizer,
-                recordDescProvider);
+                recordDescProvider, retainInput);
     }
 }
