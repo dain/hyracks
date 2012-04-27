@@ -66,11 +66,13 @@ public class BTreeSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutp
 	protected RecordDescriptor recDesc;
 	protected FrameTupleReference tuple;
 	protected final boolean retainInput;
+	protected final RecordDescriptor inputRecDesc;
 
     public BTreeSearchOperatorNodePushable(AbstractTreeIndexOperatorDescriptor opDesc, IHyracksTaskContext ctx,
             int partition, IRecordDescriptorProvider recordDescProvider, boolean isForward, int[] lowKeyFields,
             int[] highKeyFields, boolean lowKeyInclusive, boolean highKeyInclusive, boolean retainInput) {
-        treeIndexHelper = (TreeIndexDataflowHelper) opDesc.getIndexDataflowHelperFactory().createIndexDataflowHelper(
+    	inputRecDesc = recordDescProvider.getInputRecordDescriptor(opDesc.getOperatorId(), 0);
+    	treeIndexHelper = (TreeIndexDataflowHelper) opDesc.getIndexDataflowHelperFactory().createIndexDataflowHelper(
                 opDesc, ctx, partition, false);
         this.isForward = isForward;
         this.lowKeyInclusive = lowKeyInclusive;
@@ -108,7 +110,11 @@ public class BTreeSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutp
                     highKeySearchCmp);
 
             writeBuffer = treeIndexHelper.getHyracksTaskContext().allocateFrame();
-            tb = new ArrayTupleBuilder(btree.getFieldCount());
+            if (retainInput) {
+            	tb = new ArrayTupleBuilder(btree.getFieldCount() + inputRecDesc.getFieldCount());
+            } else {
+            	tb = new ArrayTupleBuilder(btree.getFieldCount());
+            }
             dos = tb.getDataOutput();
             appender = new FrameTupleAppender(treeIndexHelper.getHyracksTaskContext().getFrameSize());
             appender.reset(writeBuffer, true);
