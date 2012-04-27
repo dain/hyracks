@@ -183,9 +183,23 @@ public class ChannelSet {
 
     void markEOSAck(int channelId) {
         synchronized (mConn) {
-            assert !pendingEOSAckBitmap.get(channelId);
-            pendingEOSAckBitmap.set(channelId);
-            pendingWriteEventsCounter.increment();
+            if (!pendingEOSAckBitmap.get(channelId)) {
+                pendingEOSAckBitmap.set(channelId);
+                pendingWriteEventsCounter.increment();
+            }
+        }
+    }
+
+    void notifyIOError() {
+        synchronized (mConn) {
+            for (int i = 0; i < ccbArray.length; ++i) {
+                ChannelControlBlock ccb = ccbArray[i];
+                if (ccb != null && !ccb.getRemoteEOS()) {
+                    ccb.reportRemoteError(-1);
+                    markEOSAck(i);
+                    unmarkPendingCredits(i);
+                }
+            }
         }
     }
 
