@@ -211,7 +211,7 @@ public class ChannelSet {
             throw new NetException("More than " + MAX_OPEN_CHANNELS + " opened concurrently");
         }
         if (ccbArray[idx] != null) {
-            assert ccbArray[idx].completelyClosed();
+            assert ccbArray[idx].completelyClosed() : ccbArray[idx].toString();
             if (ccbArray[idx].completelyClosed()) {
                 if (LOGGER.isLoggable(Level.FINE)) {
                     LOGGER.fine("Cleaning free channel: " + ccbArray[idx]);
