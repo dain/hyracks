@@ -85,12 +85,7 @@ public class UnnestMapOperator extends AbstractUnnestOperator {
                 ctx.getMetadataProvider());
         int n = variables.size();
         for (int i = 0; i < n; i++) {
-        	try {
             env.setVarType(variables.get(i), variableTypes.get(i));
-        	} catch (Exception e) {
-        		System.out.println("HAHA");
-        		throw new AlgebricksException(e);
-        	}
         }
         return env;
     }
