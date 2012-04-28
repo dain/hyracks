@@ -110,11 +110,7 @@ public class BTreeSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutp
                     highKeySearchCmp);
 
             writeBuffer = treeIndexHelper.getHyracksTaskContext().allocateFrame();
-            if (retainInput) {
-            	tb = new ArrayTupleBuilder(btree.getFieldCount() + inputRecDesc.getFieldCount());
-            } else {
-            	tb = new ArrayTupleBuilder(btree.getFieldCount());
-            }
+            tb = new ArrayTupleBuilder(opDesc.getRecordDescriptor().getFieldCount());
             dos = tb.getDataOutput();
             appender = new FrameTupleAppender(treeIndexHelper.getHyracksTaskContext().getFrameSize());
             appender.reset(writeBuffer, true);

@@ -110,11 +110,7 @@ public class InvertedIndexSearchOperatorNodePushable extends AbstractUnaryInputU
         }
 
         writeBuffer = btreeDataflowHelper.getHyracksTaskContext().allocateFrame();
-        if (retainInput) {
-        	tb = new ArrayTupleBuilder(opDesc.getInvListsTypeTraits().length + inputRecDesc.getFieldCount());
-        } else {
-        	tb = new ArrayTupleBuilder(opDesc.getInvListsTypeTraits().length);
-        }
+        tb = new ArrayTupleBuilder(opDesc.getRecordDescriptor().getFieldCount());
         dos = tb.getDataOutput();
         appender = new FrameTupleAppender(btreeDataflowHelper.getHyracksTaskContext().getFrameSize());
         appender.reset(writeBuffer, true);
