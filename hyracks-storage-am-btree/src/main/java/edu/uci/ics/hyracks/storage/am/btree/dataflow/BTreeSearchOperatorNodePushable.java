@@ -66,12 +66,10 @@ public class BTreeSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutp
 	protected RecordDescriptor recDesc;
 	protected FrameTupleReference tuple;
 	protected final boolean retainInput;
-	protected final RecordDescriptor inputRecDesc;
 
     public BTreeSearchOperatorNodePushable(AbstractTreeIndexOperatorDescriptor opDesc, IHyracksTaskContext ctx,
             int partition, IRecordDescriptorProvider recordDescProvider, boolean isForward, int[] lowKeyFields,
             int[] highKeyFields, boolean lowKeyInclusive, boolean highKeyInclusive, boolean retainInput) {
-    	inputRecDesc = recordDescProvider.getInputRecordDescriptor(opDesc.getOperatorId(), 0);
     	treeIndexHelper = (TreeIndexDataflowHelper) opDesc.getIndexDataflowHelperFactory().createIndexDataflowHelper(
                 opDesc, ctx, partition, false);
         this.isForward = isForward;

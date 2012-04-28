@@ -60,12 +60,10 @@ public class InvertedIndexSearchOperatorNodePushable extends AbstractUnaryInputU
     private DataOutput dos;
 
     private final AbstractInvertedIndexOperatorDescriptor opDesc;
-    private final RecordDescriptor inputRecDesc;
 
     public InvertedIndexSearchOperatorNodePushable(AbstractInvertedIndexOperatorDescriptor opDesc,
             IHyracksTaskContext ctx, int partition, int queryField, IInvertedIndexSearchModifier searchModifier,
             IBinaryTokenizer queryTokenizer, IRecordDescriptorProvider recordDescProvider, boolean retainInput) {
-    	inputRecDesc = recordDescProvider.getInputRecordDescriptor(opDesc.getOperatorId(), 0);
     	this.opDesc = opDesc;
         btreeDataflowHelper = (TreeIndexDataflowHelper) opDesc.getIndexDataflowHelperFactory()
                 .createIndexDataflowHelper(opDesc, ctx, partition, false);
