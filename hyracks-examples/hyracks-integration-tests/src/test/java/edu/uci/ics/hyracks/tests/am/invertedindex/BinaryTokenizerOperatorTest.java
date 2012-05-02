@@ -1,4 +1,4 @@
-package edu.uci.ics.hyracks.tests.invertedindex;
+package edu.uci.ics.hyracks.tests.am.invertedindex;
 
 import java.io.File;
 
@@ -29,7 +29,7 @@ import edu.uci.ics.hyracks.storage.am.invertedindex.tokenizers.ITokenFactory;
 import edu.uci.ics.hyracks.storage.am.invertedindex.tokenizers.UTF8WordTokenFactory;
 import edu.uci.ics.hyracks.tests.integration.AbstractIntegrationTest;
 
-public class InvertedIndexOperatorsTest extends AbstractIntegrationTest {
+public class BinaryTokenizerOperatorTest extends AbstractIntegrationTest {
 
     @Test
     public void tokenizerTest() throws Exception {
@@ -53,9 +53,9 @@ public class InvertedIndexOperatorsTest extends AbstractIntegrationTest {
         IBinaryTokenizerFactory tokenizerFactory = new DelimitedUTF8StringBinaryTokenizerFactory(true, false,
                 tokenFactory);
         int[] tokenFields = { 1 };
-        int[] projFields = { 0 };
+        int[] keyFields = { 0 };
         BinaryTokenizerOperatorDescriptor binaryTokenizer = new BinaryTokenizerOperatorDescriptor(spec,
-                tokenizerRecDesc, tokenizerFactory, tokenFields, projFields);
+                tokenizerRecDesc, tokenizerFactory, tokenFields, keyFields);
         PartitionConstraintHelper.addAbsoluteLocationConstraint(spec, binaryTokenizer, NC1_ID);
 
         IFileSplitProvider outSplits = new ConstantFileSplitProvider(new FileSplit[] { new FileSplit(NC1_ID,
