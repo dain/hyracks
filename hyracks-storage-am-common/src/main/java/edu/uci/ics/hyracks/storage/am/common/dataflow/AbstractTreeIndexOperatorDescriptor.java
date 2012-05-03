@@ -21,7 +21,7 @@ import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
 import edu.uci.ics.hyracks.api.job.JobSpecification;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractSingleActivityOperatorDescriptor;
 import edu.uci.ics.hyracks.dataflow.std.file.IFileSplitProvider;
-import edu.uci.ics.hyracks.storage.am.common.api.ITreeIndexFrameFactory;
+import edu.uci.ics.hyracks.storage.am.common.api.IOperationCallbackProvider;
 import edu.uci.ics.hyracks.storage.common.IStorageManagerInterface;
 
 public abstract class AbstractTreeIndexOperatorDescriptor extends
@@ -34,33 +34,31 @@ public abstract class AbstractTreeIndexOperatorDescriptor extends
 
 	protected final IBinaryComparatorFactory[] comparatorFactories;
 
-	protected final ITreeIndexFrameFactory interiorFrameFactory;
-	protected final ITreeIndexFrameFactory leafFrameFactory;
-
 	protected final IStorageManagerInterface storageManager;
 	protected final IIndexRegistryProvider<IIndex> indexRegistryProvider;
 
 	protected final ITypeTraits[] typeTraits;
 	protected final IIndexDataflowHelperFactory dataflowHelperFactory;
 
+    protected final IOperationCallbackProvider opCallbackProvider;
+
 	public AbstractTreeIndexOperatorDescriptor(JobSpecification spec,
 			int inputArity, int outputArity, RecordDescriptor recDesc,
 			IStorageManagerInterface storageManager,
 			IIndexRegistryProvider<IIndex> indexRegistryProvider,
 			IFileSplitProvider fileSplitProvider,
-			ITreeIndexFrameFactory interiorFrameFactory,
-			ITreeIndexFrameFactory leafFrameFactory, ITypeTraits[] typeTraits,
+			ITypeTraits[] typeTraits,
 			IBinaryComparatorFactory[] comparatorFactories,
-			IIndexDataflowHelperFactory dataflowHelperFactory) {
+			IIndexDataflowHelperFactory dataflowHelperFactory, 
+			IOperationCallbackProvider opCallbackProvider) {
 		super(spec, inputArity, outputArity);
 		this.fileSplitProvider = fileSplitProvider;
 		this.storageManager = storageManager;
 		this.indexRegistryProvider = indexRegistryProvider;
-		this.interiorFrameFactory = interiorFrameFactory;
-		this.leafFrameFactory = leafFrameFactory;
 		this.typeTraits = typeTraits;
 		this.comparatorFactories = comparatorFactories;
 		this.dataflowHelperFactory = dataflowHelperFactory;
+        this.opCallbackProvider = opCallbackProvider;
 		if (outputArity > 0) {
 			recordDescriptors[0] = recDesc;
 		}
@@ -79,16 +77,6 @@ public abstract class AbstractTreeIndexOperatorDescriptor extends
 	@Override
 	public ITypeTraits[] getTreeIndexTypeTraits() {
 		return typeTraits;
-	}
-
-	@Override
-	public ITreeIndexFrameFactory getTreeIndexInteriorFactory() {
-		return interiorFrameFactory;
-	}
-
-	@Override
-	public ITreeIndexFrameFactory getTreeIndexLeafFactory() {
-		return leafFrameFactory;
 	}
 
 	@Override
