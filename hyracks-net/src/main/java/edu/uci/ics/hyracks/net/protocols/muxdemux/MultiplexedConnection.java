@@ -264,6 +264,8 @@ public class MultiplexedConnection implements ITCPConnectionEventListener {
                 BitSet pendingEOSAckBitmap = cSet.getPendingEOSAckBitmap();
                 for (int j = pendingEOSAckBitmap.nextSetBit(0); j >= 0; j = pendingEOSAckBitmap.nextSetBit(j)) {
                     pendingEOSAckBitmap.clear(j);
+                    ChannelControlBlock ccb = cSet.getCCB(j);
+                    ccb.reportRemoteEOSAck();
                     writerState.command.setChannelId(j);
                     writerState.command.setCommandType(MuxDemuxCommand.CommandType.CLOSE_CHANNEL_ACK);
                     writerState.command.setData(0);

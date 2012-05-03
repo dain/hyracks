@@ -45,6 +45,8 @@ public class ChannelControlBlock {
 
     private final AtomicBoolean remoteClose;
 
+    private final AtomicBoolean remoteCloseAck;
+
     ChannelControlBlock(ChannelSet cSet, int channelId) {
         this.cSet = cSet;
         this.channelId = channelId;
@@ -53,6 +55,7 @@ public class ChannelControlBlock {
         localClose = new AtomicBoolean();
         localCloseAck = new AtomicBoolean();
         remoteClose = new AtomicBoolean();
+        remoteCloseAck = new AtomicBoolean();
     }
 
     int getChannelId() {
@@ -321,6 +324,10 @@ public class ChannelControlBlock {
         remoteClose.set(true);
     }
 
+    void reportRemoteEOSAck() {
+        remoteCloseAck.set(true);
+    }
+
     boolean getRemoteEOS() {
         return remoteClose.get();
     }
@@ -336,12 +343,13 @@ public class ChannelControlBlock {
     }
 
     boolean completelyClosed() {
-        return localCloseAck.get() && remoteClose.get();
+        return localCloseAck.get() && remoteCloseAck.get();
     }
 
     @Override
     public String toString() {
         return "Channel:" + channelId + "[localClose: " + localClose + " localCloseAck: " + localCloseAck
-                + " remoteClose: " + remoteClose + " readCredits: " + ri.credits + " writeCredits: " + wi.credits + "]";
+                + " remoteClose: " + remoteClose + " remoteCloseAck:" + remoteCloseAck + " readCredits: " + ri.credits
+                + " writeCredits: " + wi.credits + "]";
     }
 }
