@@ -28,6 +28,11 @@ import edu.uci.ics.hyracks.net.buffers.IBufferAcceptor;
 import edu.uci.ics.hyracks.net.buffers.ICloseableBufferAcceptor;
 import edu.uci.ics.hyracks.net.exceptions.NetException;
 
+/**
+ * Handle to a channel that represents a logical full-duplex communication end-point.
+ * 
+ * @author vinayakb
+ */
 public class ChannelControlBlock {
     private static final Logger LOGGER = Logger.getLogger(ChannelControlBlock.class.getName());
 
@@ -62,10 +67,20 @@ public class ChannelControlBlock {
         return channelId;
     }
 
+    /**
+     * Get the read inderface of this channel.
+     * 
+     * @return the read interface.
+     */
     public IChannelReadInterface getReadInterface() {
         return ri;
     }
 
+    /**
+     * Get the write interface of this channel.
+     * 
+     * @return the write interface.
+     */
     public IChannelWriteInterface getWriteInterface() {
         return wi;
     }
