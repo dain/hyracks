@@ -26,6 +26,12 @@ import edu.uci.ics.hyracks.net.exceptions.NetException;
 import edu.uci.ics.hyracks.net.protocols.tcp.ITCPConnectionEventListener;
 import edu.uci.ics.hyracks.net.protocols.tcp.TCPConnection;
 
+/**
+ * A {@link MultiplexedConnection} can be used by clients to create multiple "channels"
+ * that can have independent full-duplex conversations.
+ * 
+ * @author vinayakb
+ */
 public class MultiplexedConnection implements ITCPConnectionEventListener {
     private static final Logger LOGGER = Logger.getLogger(MultiplexedConnection.class.getName());
 
@@ -49,7 +55,9 @@ public class MultiplexedConnection implements ITCPConnectionEventListener {
 
     private boolean connectionFailure;
 
-    public MultiplexedConnection(MuxDemux muxDemux) {
+    private Exception error;
+
+    MultiplexedConnection(MuxDemux muxDemux) {
         this.muxDemux = muxDemux;
         pendingWriteEventsCounter = new IEventCounter() {
             private int counter;
@@ -119,7 +127,26 @@ public class MultiplexedConnection implements ITCPConnectionEventListener {
         }
     }
 
-    public ChannelControlBlock openChannel() throws NetException, InterruptedException {
+    @Override
+    public synchronized void notifyIOError(Exception e) {
+        connectionFailure = true;
+        error = e;
+        cSet.notifyIOError();
+    }
+
+    /**
+     * Open a channel to the other side.
+     * 
+     * @return
+     * @throws NetException
+     *             - A network failure occurred.
+     */
+    public ChannelControlBlock openChannel() throws NetException {
+        synchronized (this) {
+            if (connectionFailure) {
+                throw new NetException(error);
+            }
+        }
         ChannelControlBlock channel = cSet.allocateChannel();
         int channelId = channel.getChannelId();
         cSet.initiateChannelSyn(channelId);
@@ -250,6 +277,8 @@ public class MultiplexedConnection implements ITCPConnectionEventListener {
                 BitSet pendingEOSAckBitmap = cSet.getPendingEOSAckBitmap();
                 for (int j = pendingEOSAckBitmap.nextSetBit(0); j >= 0; j = pendingEOSAckBitmap.nextSetBit(j)) {
                     pendingEOSAckBitmap.clear(j);
+                    ChannelControlBlock ccb = cSet.getCCB(j);
+                    ccb.reportRemoteEOSAck();
                     writerState.command.setChannelId(j);
                     writerState.command.setCommandType(MuxDemuxCommand.CommandType.CLOSE_CHANNEL_ACK);
                     writerState.command.setData(0);

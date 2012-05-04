@@ -29,30 +29,27 @@ import edu.uci.ics.hyracks.dataflow.common.comm.util.FrameUtils;
 import edu.uci.ics.hyracks.dataflow.common.data.accessors.FrameTupleReference;
 import edu.uci.ics.hyracks.dataflow.common.data.accessors.ITupleReference;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputUnaryOutputOperatorNodePushable;
+import edu.uci.ics.hyracks.storage.am.common.api.IIndexAccessor;
+import edu.uci.ics.hyracks.storage.am.common.api.IIndexCursor;
 import edu.uci.ics.hyracks.storage.am.common.dataflow.TreeIndexDataflowHelper;
-import edu.uci.ics.hyracks.storage.am.invertedindex.api.IInvertedIndexResultCursor;
+import edu.uci.ics.hyracks.storage.am.common.impls.NoOpOperationCallbackProvider;
 import edu.uci.ics.hyracks.storage.am.invertedindex.api.IInvertedIndexSearchModifier;
 import edu.uci.ics.hyracks.storage.am.invertedindex.impls.InvertedIndex;
+import edu.uci.ics.hyracks.storage.am.invertedindex.impls.InvertedIndexSearchPredicate;
 import edu.uci.ics.hyracks.storage.am.invertedindex.impls.OccurrenceThresholdPanicException;
-import edu.uci.ics.hyracks.storage.am.invertedindex.impls.SearchResultCursor;
-import edu.uci.ics.hyracks.storage.am.invertedindex.impls.TOccurrenceSearcher;
-import edu.uci.ics.hyracks.storage.am.invertedindex.tokenizers.IBinaryTokenizer;
 
 public class InvertedIndexSearchOperatorNodePushable extends AbstractUnaryInputUnaryOutputOperatorNodePushable {
     private final TreeIndexDataflowHelper btreeDataflowHelper;
     private final InvertedIndexDataflowHelper invIndexDataflowHelper;
-    private final IHyracksTaskContext ctx;
     private final int queryField;
     private FrameTupleAccessor accessor;
     private FrameTupleReference tuple;
     private IRecordDescriptorProvider recordDescProvider;
     private InvertedIndex invIndex;
 
-    private final IInvertedIndexSearchModifier searchModifier;
-    private final IBinaryTokenizer queryTokenizer;
-    private final boolean retainInput;
-    private TOccurrenceSearcher searcher;
-    private IInvertedIndexResultCursor resultCursor;
+    private final InvertedIndexSearchPredicate searchPred;
+    private IIndexAccessor indexAccessor;
+    private IIndexCursor resultCursor;
 
     private ByteBuffer writeBuffer;
     private FrameTupleAppender appender;
@@ -60,32 +57,31 @@ public class InvertedIndexSearchOperatorNodePushable extends AbstractUnaryInputU
     private DataOutput dos;
 
     private final AbstractInvertedIndexOperatorDescriptor opDesc;
+    private final boolean retainInput;
 
     public InvertedIndexSearchOperatorNodePushable(AbstractInvertedIndexOperatorDescriptor opDesc,
             IHyracksTaskContext ctx, int partition, int queryField, IInvertedIndexSearchModifier searchModifier,
-            IBinaryTokenizer queryTokenizer, IRecordDescriptorProvider recordDescProvider, boolean retainInput) {
-    	this.opDesc = opDesc;
+            IRecordDescriptorProvider recordDescProvider) {
+        this.opDesc = opDesc;
         btreeDataflowHelper = (TreeIndexDataflowHelper) opDesc.getIndexDataflowHelperFactory()
-                .createIndexDataflowHelper(opDesc, ctx, partition, false);
+                .createIndexDataflowHelper(opDesc, ctx, NoOpOperationCallbackProvider.INSTANCE, partition, false);
         invIndexDataflowHelper = new InvertedIndexDataflowHelper(btreeDataflowHelper, opDesc, ctx, partition, false);
-        this.ctx = ctx;
         this.queryField = queryField;
-        this.searchModifier = searchModifier;
-        this.queryTokenizer = queryTokenizer;
-        this.retainInput = retainInput;
+        this.searchPred = new InvertedIndexSearchPredicate(searchModifier);
         this.recordDescProvider = recordDescProvider;
+        this.retainInput = invIndexDataflowHelper.getOperatorDescriptor().getRetainInput();
     }
 
     @Override
     public void open() throws HyracksDataException {
-        RecordDescriptor recDesc = recordDescProvider.getInputRecordDescriptor(opDesc.getOperatorId(), 0);
-        accessor = new FrameTupleAccessor(btreeDataflowHelper.getHyracksTaskContext().getFrameSize(), recDesc);
+        RecordDescriptor inputRecDesc = recordDescProvider.getInputRecordDescriptor(opDesc.getOperatorId(), 0);
+        accessor = new FrameTupleAccessor(btreeDataflowHelper.getHyracksTaskContext().getFrameSize(), inputRecDesc);
         tuple = new FrameTupleReference();
         // BTree.
         try {
             btreeDataflowHelper.init();
         } catch (Exception e) {
-            // Cleanup in case of failure.
+            // Cleanup in case of failure/
             btreeDataflowHelper.deinit();
             if (e instanceof HyracksDataException) {
                 throw (HyracksDataException) e;
@@ -108,15 +104,13 @@ public class InvertedIndexSearchOperatorNodePushable extends AbstractUnaryInputU
         }
 
         writeBuffer = btreeDataflowHelper.getHyracksTaskContext().allocateFrame();
-        tb = new ArrayTupleBuilder(opDesc.getRecordDescriptor().getFieldCount());
+        tb = new ArrayTupleBuilder(recordDesc.getFieldCount());
         dos = tb.getDataOutput();
         appender = new FrameTupleAppender(btreeDataflowHelper.getHyracksTaskContext().getFrameSize());
         appender.reset(writeBuffer, true);
 
-        searcher = new TOccurrenceSearcher(ctx, invIndex, queryTokenizer);
-        resultCursor = new SearchResultCursor(searcher.createResultFrameTupleAccessor(),
-                searcher.createResultTupleReference());
-
+        indexAccessor = invIndex.createAccessor();
+        resultCursor = indexAccessor.createSearchCursor();
         writer.open();
     }
 
@@ -124,14 +118,14 @@ public class InvertedIndexSearchOperatorNodePushable extends AbstractUnaryInputU
         while (resultCursor.hasNext()) {
             resultCursor.next();
             tb.reset();
+            if (retainInput) {
+                for (int i = 0; i < tuple.getFieldCount(); i++) {
+                	dos.write(tuple.getFieldData(i), tuple.getFieldStart(i), tuple.getFieldLength(i));
+                    tb.addFieldEndOffset();
+                }
+            }
             ITupleReference invListElement = resultCursor.getTuple();
             int invListFields = opDesc.getInvListsTypeTraits().length;
-            if (retainInput) {
-            	for (int i = 0; i < tuple.getFieldCount(); i++) {
-            		dos.write(tuple.getFieldData(i), tuple.getFieldStart(i), tuple.getFieldLength(i));
-                    tb.addFieldEndOffset();
-            	}
-            }
             for (int i = 0; i < invListFields; i++) {
                 dos.write(invListElement.getFieldData(i), invListElement.getFieldStart(i),
                         invListElement.getFieldLength(i));
@@ -154,10 +148,11 @@ public class InvertedIndexSearchOperatorNodePushable extends AbstractUnaryInputU
         try {
             for (int i = 0; i < tupleCount; i++) {
                 tuple.reset(accessor, i);
-                searcher.reset();
+                searchPred.setQueryTuple(tuple);
+                searchPred.setQueryFieldIndex(queryField);
                 try {
-                    searcher.reset();
-                    searcher.search(resultCursor, tuple, queryField, searchModifier);
+                    resultCursor.reset();
+                    indexAccessor.search(resultCursor, searchPred);
                     writeSearchResults();
                 } catch (OccurrenceThresholdPanicException e) {
                     // Ignore panic cases for now.

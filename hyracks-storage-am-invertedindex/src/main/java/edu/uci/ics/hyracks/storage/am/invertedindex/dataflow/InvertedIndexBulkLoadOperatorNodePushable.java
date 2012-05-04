@@ -23,21 +23,17 @@ import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
 import edu.uci.ics.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputSinkOperatorNodePushable;
 import edu.uci.ics.hyracks.storage.am.btree.impls.BTree;
-import edu.uci.ics.hyracks.storage.am.common.api.PageAllocationException;
 import edu.uci.ics.hyracks.storage.am.common.dataflow.PermutingFrameTupleReference;
 import edu.uci.ics.hyracks.storage.am.common.dataflow.TreeIndexDataflowHelper;
-import edu.uci.ics.hyracks.storage.am.invertedindex.api.IInvertedListBuilder;
-import edu.uci.ics.hyracks.storage.am.invertedindex.impls.FixedSizeElementInvertedListBuilder;
+import edu.uci.ics.hyracks.storage.am.common.impls.NoOpOperationCallbackProvider;
 import edu.uci.ics.hyracks.storage.am.invertedindex.impls.InvertedIndex;
+import edu.uci.ics.hyracks.storage.am.invertedindex.impls.InvertedIndex.InvertedIndexBulkLoadContext;
 
 public class InvertedIndexBulkLoadOperatorNodePushable extends AbstractUnaryInputSinkOperatorNodePushable {
     private final TreeIndexDataflowHelper btreeDataflowHelper;
     private final InvertedIndexDataflowHelper invIndexDataflowHelper;
-    private final IInvertedListBuilder invListBuilder;
     private InvertedIndex invIndex;
-    private InvertedIndex.BulkLoadContext bulkLoadCtx;
-
-    private final IHyracksTaskContext ctx;
+    private InvertedIndex.InvertedIndexBulkLoadContext bulkLoadCtx;
 
     private FrameTupleAccessor accessor;
     private PermutingFrameTupleReference tuple = new PermutingFrameTupleReference();
@@ -47,11 +43,9 @@ public class InvertedIndexBulkLoadOperatorNodePushable extends AbstractUnaryInpu
     public InvertedIndexBulkLoadOperatorNodePushable(AbstractInvertedIndexOperatorDescriptor opDesc,
             IHyracksTaskContext ctx, int partition, int[] fieldPermutation, IRecordDescriptorProvider recordDescProvider) {
         btreeDataflowHelper = (TreeIndexDataflowHelper) opDesc.getIndexDataflowHelperFactory()
-                .createIndexDataflowHelper(opDesc, ctx, partition, true);
+                .createIndexDataflowHelper(opDesc, ctx, NoOpOperationCallbackProvider.INSTANCE, partition, true);
         invIndexDataflowHelper = new InvertedIndexDataflowHelper(btreeDataflowHelper, opDesc, ctx, partition, true);
         this.recordDescProvider = recordDescProvider;
-        this.ctx = ctx;
-        this.invListBuilder = new FixedSizeElementInvertedListBuilder(opDesc.getInvListsTypeTraits());
         tuple.setFieldPermutation(fieldPermutation);
     }
 
@@ -79,7 +73,7 @@ public class InvertedIndexBulkLoadOperatorNodePushable extends AbstractUnaryInpu
         try {
             invIndexDataflowHelper.init();
             invIndex = (InvertedIndex) invIndexDataflowHelper.getIndex();
-            bulkLoadCtx = invIndex.beginBulkLoad(invListBuilder, ctx.getFrameSize(), BTree.DEFAULT_FILL_FACTOR);
+            bulkLoadCtx = (InvertedIndexBulkLoadContext) invIndex.beginBulkLoad(BTree.DEFAULT_FILL_FACTOR);
         } catch (Exception e) {
             // Cleanup in case of failure.
             invIndexDataflowHelper.deinit();
@@ -97,11 +91,7 @@ public class InvertedIndexBulkLoadOperatorNodePushable extends AbstractUnaryInpu
         int tupleCount = accessor.getTupleCount();
         for (int i = 0; i < tupleCount; i++) {
             tuple.reset(accessor, i);
-            try {
-                invIndex.bulkLoadAddTuple(bulkLoadCtx, tuple);
-            } catch (PageAllocationException e) {
-                throw new HyracksDataException(e);
-            }
+            invIndex.bulkLoadAddTuple(tuple, bulkLoadCtx);
         }
     }
 
@@ -109,7 +99,7 @@ public class InvertedIndexBulkLoadOperatorNodePushable extends AbstractUnaryInpu
     public void close() throws HyracksDataException {
         try {
             invIndex.endBulkLoad(bulkLoadCtx);
-        } catch (PageAllocationException e) {
+        } catch (Exception e) {
             throw new HyracksDataException(e);
         } finally {
             try {
@@ -122,5 +112,6 @@ public class InvertedIndexBulkLoadOperatorNodePushable extends AbstractUnaryInpu
 
     @Override
     public void fail() throws HyracksDataException {
+        writer.fail();
     }
 }

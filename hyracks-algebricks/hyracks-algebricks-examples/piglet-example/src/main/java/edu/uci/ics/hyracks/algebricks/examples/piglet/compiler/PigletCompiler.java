@@ -22,6 +22,7 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.base.ILogicalOperator;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.ILogicalPlan;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import edu.uci.ics.hyracks.algebricks.core.algebra.data.ISerializerDeserializerProvider;
+import edu.uci.ics.hyracks.algebricks.core.algebra.data.ITypeTraitProvider;
 import edu.uci.ics.hyracks.algebricks.core.algebra.expressions.ConstantExpression;
 import edu.uci.ics.hyracks.algebricks.core.algebra.expressions.IExpressionTypeComputer;
 import edu.uci.ics.hyracks.algebricks.core.algebra.expressions.IVariableTypeEnvironment;
@@ -64,6 +65,7 @@ import edu.uci.ics.hyracks.algebricks.examples.piglet.runtime.PigletExpressionJo
 import edu.uci.ics.hyracks.algebricks.examples.piglet.types.Schema;
 import edu.uci.ics.hyracks.algebricks.examples.piglet.types.Type;
 import edu.uci.ics.hyracks.api.dataflow.value.ISerializerDeserializer;
+import edu.uci.ics.hyracks.api.dataflow.value.ITypeTraits;
 import edu.uci.ics.hyracks.api.job.JobSpecification;
 
 public class PigletCompiler {
@@ -122,6 +124,11 @@ public class PigletCompiler {
             public ISerializerDeserializer getSerializerDeserializer(Object type) throws AlgebricksException {
                 return null;
             }
+        });
+        builder.setTypeTraitProvider(new ITypeTraitProvider() {
+			public ITypeTraits getTypeTrait(Object type) {
+				return null;
+			}
         });
         builder.setPrinterProvider(PigletPrinterFactoryProvider.INSTANCE);
         builder.setExprJobGen(new PigletExpressionJobGen());

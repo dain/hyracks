@@ -30,6 +30,7 @@ import edu.uci.ics.hyracks.storage.am.common.dataflow.IIndexDataflowHelperFactor
 import edu.uci.ics.hyracks.storage.am.common.dataflow.IIndexRegistryProvider;
 import edu.uci.ics.hyracks.storage.am.common.tuples.TypeAwareTupleWriterFactory;
 import edu.uci.ics.hyracks.storage.am.invertedindex.api.IInvertedIndexOperatorDescriptor;
+import edu.uci.ics.hyracks.storage.am.invertedindex.tokenizers.IBinaryTokenizerFactory;
 import edu.uci.ics.hyracks.storage.am.invertedindex.util.InvertedIndexUtils;
 import edu.uci.ics.hyracks.storage.common.IStorageManagerInterface;
 
@@ -41,6 +42,7 @@ public abstract class AbstractInvertedIndexOperatorDescriptor extends AbstractSi
     // General.
     protected final IStorageManagerInterface storageManager;
     protected final IIndexRegistryProvider<IIndex> indexRegistryProvider;
+    protected final boolean retainInput;
 
     // Btree.
     protected final ITreeIndexFrameFactory btreeInteriorFrameFactory;
@@ -53,6 +55,7 @@ public abstract class AbstractInvertedIndexOperatorDescriptor extends AbstractSi
     // Inverted index.
     protected final ITypeTraits[] invListsTypeTraits;
     protected final IBinaryComparatorFactory[] invListComparatorFactories;
+    protected final IBinaryTokenizerFactory tokenizerFactory;
     protected final IFileSplitProvider invListsFileSplitProvider;
 
     public AbstractInvertedIndexOperatorDescriptor(JobSpecification spec, int inputArity, int outputArity,
@@ -60,13 +63,14 @@ public abstract class AbstractInvertedIndexOperatorDescriptor extends AbstractSi
             IFileSplitProvider btreeFileSplitProvider, IFileSplitProvider invListsFileSplitProvider,
             IIndexRegistryProvider<IIndex> indexRegistryProvider, ITypeTraits[] tokenTypeTraits,
             IBinaryComparatorFactory[] tokenComparatorFactories, ITypeTraits[] invListsTypeTraits,
-            IBinaryComparatorFactory[] invListComparatorFactories,
-            IIndexDataflowHelperFactory btreeDataflowHelperFactory) {
+            IBinaryComparatorFactory[] invListComparatorFactories, IBinaryTokenizerFactory tokenizerFactory,
+            IIndexDataflowHelperFactory btreeDataflowHelperFactory, boolean retainInput) {
         super(spec, inputArity, outputArity);
 
         // General.
         this.storageManager = storageManager;
         this.indexRegistryProvider = indexRegistryProvider;
+        this.retainInput = retainInput;
 
         // Btree.
         this.btreeTypeTraits = InvertedIndexUtils.getBTreeTypeTraits(tokenTypeTraits);
@@ -80,6 +84,7 @@ public abstract class AbstractInvertedIndexOperatorDescriptor extends AbstractSi
         // Inverted index.
         this.invListsTypeTraits = invListsTypeTraits;
         this.invListComparatorFactories = invListComparatorFactories;
+        this.tokenizerFactory = tokenizerFactory;
         this.invListsFileSplitProvider = invListsFileSplitProvider;
 
         if (outputArity > 0) {
@@ -108,16 +113,6 @@ public abstract class AbstractInvertedIndexOperatorDescriptor extends AbstractSi
     }
 
     @Override
-    public ITreeIndexFrameFactory getTreeIndexInteriorFactory() {
-        return btreeInteriorFrameFactory;
-    }
-
-    @Override
-    public ITreeIndexFrameFactory getTreeIndexLeafFactory() {
-        return btreeLeafFrameFactory;
-    }
-
-    @Override
     public IStorageManagerInterface getStorageManager() {
         return storageManager;
     }
@@ -133,6 +128,11 @@ public abstract class AbstractInvertedIndexOperatorDescriptor extends AbstractSi
     }
 
     @Override
+    public IBinaryTokenizerFactory getTokenizerFactory() {
+        return tokenizerFactory;
+    }
+    
+    @Override
     public ITypeTraits[] getInvListsTypeTraits() {
         return invListsTypeTraits;
     }
@@ -145,5 +145,10 @@ public abstract class AbstractInvertedIndexOperatorDescriptor extends AbstractSi
     @Override
     public IIndexDataflowHelperFactory getIndexDataflowHelperFactory() {
         return btreeDataflowHelperFactory;
+    }
+    
+    @Override
+    public boolean getRetainInput() {
+    	return retainInput;
     }
 }

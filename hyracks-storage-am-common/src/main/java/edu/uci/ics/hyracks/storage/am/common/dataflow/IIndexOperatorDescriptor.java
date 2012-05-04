@@ -30,4 +30,6 @@ public interface IIndexOperatorDescriptor extends IActivity {
     public RecordDescriptor getRecordDescriptor();
     
     public IIndexDataflowHelperFactory getIndexDataflowHelperFactory();
+    
+    public boolean getRetainInput();
 }
