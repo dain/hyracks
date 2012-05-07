@@ -21,6 +21,7 @@ import java.util.Map;
 
 import org.apache.commons.lang3.mutable.Mutable;
 
+import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.IHyracksJobBuilder;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.ILogicalOperator;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.IOptimizationContext;
@@ -35,8 +36,7 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.typing.ITypeEnvPointer;
 import edu.uci.ics.hyracks.algebricks.core.algebra.typing.ITypingContext;
 import edu.uci.ics.hyracks.algebricks.core.algebra.typing.OpRefTypeEnvPointer;
 import edu.uci.ics.hyracks.algebricks.core.algebra.typing.PropagatingTypeEnvironment;
-import edu.uci.ics.hyracks.algebricks.core.api.exceptions.AlgebricksException;
-import edu.uci.ics.hyracks.algebricks.runtime.jobgen.impl.JobGenContext;
+import edu.uci.ics.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 
 public abstract class AbstractLogicalOperator implements ILogicalOperator {
 

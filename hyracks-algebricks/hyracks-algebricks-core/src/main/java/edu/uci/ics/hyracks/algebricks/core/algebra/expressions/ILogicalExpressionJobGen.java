@@ -14,15 +14,15 @@
  */
 package edu.uci.ics.hyracks.algebricks.core.algebra.expressions;
 
+import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
-import edu.uci.ics.hyracks.algebricks.core.api.exceptions.AlgebricksException;
+import edu.uci.ics.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IAggregateFunctionFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IEvaluatorFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IRunningAggregateFunctionFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.ISerializableAggregateFunctionFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IUnnestingFunctionFactory;
-import edu.uci.ics.hyracks.algebricks.runtime.jobgen.impl.JobGenContext;
 
 public interface ILogicalExpressionJobGen {
 

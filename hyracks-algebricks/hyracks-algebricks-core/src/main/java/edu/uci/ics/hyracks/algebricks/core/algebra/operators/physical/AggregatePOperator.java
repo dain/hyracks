@@ -19,6 +19,7 @@ import java.util.List;
 
 import org.apache.commons.lang3.mutable.Mutable;
 
+import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.IHyracksJobBuilder;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.ILogicalOperator;
@@ -34,10 +35,9 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.properties.ILocalStructuralPr
 import edu.uci.ics.hyracks.algebricks.core.algebra.properties.IPhysicalPropertiesVector;
 import edu.uci.ics.hyracks.algebricks.core.algebra.properties.PhysicalRequirements;
 import edu.uci.ics.hyracks.algebricks.core.algebra.properties.StructuralPropertiesVector;
-import edu.uci.ics.hyracks.algebricks.core.api.exceptions.AlgebricksException;
+import edu.uci.ics.hyracks.algebricks.core.jobgen.impl.JobGenContext;
+import edu.uci.ics.hyracks.algebricks.core.jobgen.impl.JobGenHelper;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IAggregateFunctionFactory;
-import edu.uci.ics.hyracks.algebricks.runtime.jobgen.impl.JobGenContext;
-import edu.uci.ics.hyracks.algebricks.runtime.jobgen.impl.JobGenHelper;
 import edu.uci.ics.hyracks.algebricks.runtime.operators.aggreg.AggregateRuntimeFactory;
 import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
 
@@ -79,8 +79,7 @@ public class AggregatePOperator extends AbstractPhysicalOperator {
         IAggregateFunctionFactory[] aggFactories = new IAggregateFunctionFactory[expressions.size()];
         ILogicalExpressionJobGen exprJobGen = context.getExpressionJobGen();
         for (int i = 0; i < aggFactories.length; i++) {
-            AggregateFunctionCallExpression aggFun = (AggregateFunctionCallExpression) expressions.get(i)
-                    .getValue();
+            AggregateFunctionCallExpression aggFun = (AggregateFunctionCallExpression) expressions.get(i).getValue();
             aggFactories[i] = exprJobGen.createAggregateFunctionFactory(aggFun,
                     context.getTypeEnvironment(op.getInputs().get(0).getValue()), inputSchemas, context);
         }
