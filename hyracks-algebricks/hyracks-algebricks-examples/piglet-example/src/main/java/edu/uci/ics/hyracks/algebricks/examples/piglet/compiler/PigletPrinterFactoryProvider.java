@@ -6,10 +6,10 @@ import java.io.PrintStream;
 import edu.uci.ics.hyracks.algebricks.core.algebra.data.IPrinter;
 import edu.uci.ics.hyracks.algebricks.core.algebra.data.IPrinterFactory;
 import edu.uci.ics.hyracks.algebricks.core.algebra.data.IPrinterFactoryProvider;
-import edu.uci.ics.hyracks.algebricks.core.algebra.runtime.jobgen.data.IntegerPrinterFactory;
 import edu.uci.ics.hyracks.algebricks.core.api.exceptions.AlgebricksException;
 import edu.uci.ics.hyracks.algebricks.core.utils.WriteValueTools;
 import edu.uci.ics.hyracks.algebricks.examples.piglet.types.Type;
+import edu.uci.ics.hyracks.algebricks.runtime.jobgen.data.IntegerPrinterFactory;
 import edu.uci.ics.hyracks.dataflow.common.data.marshalling.FloatSerializerDeserializer;
 
 public class PigletPrinterFactoryProvider implements IPrinterFactoryProvider {
