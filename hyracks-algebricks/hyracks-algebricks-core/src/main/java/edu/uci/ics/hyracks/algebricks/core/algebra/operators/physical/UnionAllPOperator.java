@@ -35,7 +35,7 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.runtime.jobgen.impl.JobGenHel
 import edu.uci.ics.hyracks.algebricks.core.api.exceptions.AlgebricksException;
 import edu.uci.ics.hyracks.algebricks.core.utils.Triple;
 import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
+import edu.uci.ics.hyracks.api.job.IOperatorDescriptorRegistry;
 import edu.uci.ics.hyracks.dataflow.std.union.UnionAllOperatorDescriptor;
 
 public class UnionAllPOperator extends AbstractPhysicalOperator {
@@ -84,7 +84,7 @@ public class UnionAllPOperator extends AbstractPhysicalOperator {
             ++i;
         }
 
-        JobSpecification spec = builder.getJobSpec();
+        IOperatorDescriptorRegistry spec = builder.getJobSpec();
         RecordDescriptor recordDescriptor = JobGenHelper.mkRecordDescriptor(op, opSchema, context);
 
         // at algebricks level, union all only accepts two inputs, although at

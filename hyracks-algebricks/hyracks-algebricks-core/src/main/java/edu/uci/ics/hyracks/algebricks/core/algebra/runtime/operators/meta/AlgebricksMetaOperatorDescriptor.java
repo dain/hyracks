@@ -29,7 +29,7 @@ import edu.uci.ics.hyracks.api.dataflow.IOperatorNodePushable;
 import edu.uci.ics.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
+import edu.uci.ics.hyracks.api.job.IOperatorDescriptorRegistry;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractSingleActivityOperatorDescriptor;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputUnaryOutputOperatorNodePushable;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryOutputSourceOperatorNodePushable;
@@ -41,7 +41,7 @@ public class AlgebricksMetaOperatorDescriptor extends AbstractSingleActivityOper
     // array of factories for building the local runtime pipeline
     private final AlgebricksPipeline pipeline;
 
-    public AlgebricksMetaOperatorDescriptor(JobSpecification spec, int inputArity, int outputArity,
+    public AlgebricksMetaOperatorDescriptor(IOperatorDescriptorRegistry spec, int inputArity, int outputArity,
             IPushRuntimeFactory[] runtimeFactories, RecordDescriptor[] internalRecordDescriptors) {
         super(spec, inputArity, outputArity);
         if (outputArity == 1) {

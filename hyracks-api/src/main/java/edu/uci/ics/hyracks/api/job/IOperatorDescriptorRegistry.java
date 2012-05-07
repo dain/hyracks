@@ -14,12 +14,9 @@
  */
 package edu.uci.ics.hyracks.api.job;
 
-import edu.uci.ics.hyracks.api.exceptions.HyracksException;
+import edu.uci.ics.hyracks.api.dataflow.IOperatorDescriptor;
+import edu.uci.ics.hyracks.api.dataflow.OperatorDescriptorId;
 
-public interface IJobLifecycleListener {
-    public void notifyJobCreation(JobId jobId, IOperatorDescriptorRegistry jobSpec) throws HyracksException;
-
-    public void notifyJobStart(JobId jobId) throws HyracksException;
-
-    public void notifyJobFinish(JobId jobId) throws HyracksException;
+public interface IOperatorDescriptorRegistry {
+    public OperatorDescriptorId createOperatorDescriptorId(IOperatorDescriptor op);
 }

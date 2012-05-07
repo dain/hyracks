@@ -30,7 +30,7 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.runtime.jobgen.impl.JobGenCon
 import edu.uci.ics.hyracks.algebricks.core.api.exceptions.AlgebricksException;
 import edu.uci.ics.hyracks.algebricks.core.utils.Pair;
 import edu.uci.ics.hyracks.api.dataflow.IConnectorDescriptor;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
+import edu.uci.ics.hyracks.api.job.IConnectorDescriptorRegistry;
 import edu.uci.ics.hyracks.dataflow.std.connectors.MToNReplicatingConnectorDescriptor;
 
 public class BroadcastPOperator extends AbstractExchangePOperator {
@@ -61,7 +61,7 @@ public class BroadcastPOperator extends AbstractExchangePOperator {
     }
 
     @Override
-    public Pair<IConnectorDescriptor, TargetConstraint> createConnectorDescriptor(JobSpecification spec,
+    public Pair<IConnectorDescriptor, TargetConstraint> createConnectorDescriptor(IConnectorDescriptorRegistry spec,
             ILogicalOperator op, IOperatorSchema opSchema, JobGenContext context) throws AlgebricksException {
         IConnectorDescriptor conn = new MToNReplicatingConnectorDescriptor(spec);
         return new Pair<IConnectorDescriptor, TargetConstraint>(conn, null);
