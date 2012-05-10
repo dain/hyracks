@@ -182,7 +182,6 @@ public class RTree implements ITreeIndex {
                 rootNode.releaseWriteLatch();
                 bufferCache.unpin(rootNode);
             }
-            bufferCache.force(fileId, true);
         } finally {
             treeLatch.writeLock().unlock();
         }
