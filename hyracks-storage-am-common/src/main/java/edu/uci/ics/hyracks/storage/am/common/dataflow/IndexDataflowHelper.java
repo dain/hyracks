@@ -72,7 +72,15 @@ public abstract class IndexDataflowHelper {
     		    index = createIndexInstance();
     		    register = true;
     		}
-    		if (forceCreate || !fileExists) {
+    		if (!forceCreate && !fileExists) {
+    		    // Revert state of buffer cache.
+                if (!fileIsMapped) {
+                    bufferCache.deleteFile(fileId, false);
+                }
+                throw new HyracksDataException("Trying to access non-existant index file '"
+                        + fileRef.getFile().getAbsolutePath() + "'.");
+    		}
+    		if (forceCreate) {
     		    index.create(indexFileId);
     		}
     		index.open(indexFileId);
@@ -93,6 +101,7 @@ public abstract class IndexDataflowHelper {
         if (indexFileId != -1) {
             IBufferCache bufferCache = opDesc.getStorageManager().getBufferCache(ctx);
             bufferCache.closeFile(indexFileId);
+            indexFileId = -1;
         }
     }
     
