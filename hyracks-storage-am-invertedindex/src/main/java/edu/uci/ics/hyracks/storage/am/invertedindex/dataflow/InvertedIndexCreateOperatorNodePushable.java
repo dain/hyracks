@@ -48,30 +48,18 @@ public class InvertedIndexCreateOperatorNodePushable extends AbstractOperatorNod
 
     @Override
     public void initialize() throws HyracksDataException {
-        // BTree.
-        try {
-            btreeDataflowHelper.init(true);
-        } catch (Exception e) {
-            // Cleanup in case of failure.
-            btreeDataflowHelper.deinit();
-            if (e instanceof HyracksDataException) {
-                throw (HyracksDataException) e;
-            } else {
-                throw new HyracksDataException(e);
-            }
-        }
-        // Inverted Index.
-        try {
-            invIndexDataflowHelper.init(true);
-        } catch (Exception e) {
-            // Cleanup in case of failure.
-            invIndexDataflowHelper.deinit();
-            if (e instanceof HyracksDataException) {
-                throw (HyracksDataException) e;
-            } else {
-                throw new HyracksDataException(e);
-            }
-        }
+    	// BTree.
+    	try {
+    		btreeDataflowHelper.init(true);
+    	} finally {
+    		btreeDataflowHelper.deinit();
+    	}
+    	// Inverted Index.
+    	try {
+    		invIndexDataflowHelper.init(true);
+    	} finally {
+    		invIndexDataflowHelper.deinit();
+    	}
     }
 
     @Override
