@@ -93,6 +93,7 @@ public class BTree implements ITreeIndex {
             freePageManager.open(fileId);
             freePageManager.init(metaFrame, rootPage);
             initRoot(leafFrame, true);
+            bufferCache.force(fileId, true);
         } finally {
             treeLatch.writeLock().unlock();
         }
