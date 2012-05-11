@@ -79,7 +79,6 @@ public class TOccurrenceSearcher implements IInvertedIndexSearcher {
 
     protected final InvertedIndex invIndex;
     protected final MultiComparator invListCmp;
-    protected final IBinaryTokenizer queryTokenizer;
     protected final ITypeTraits[] invListFieldsWithCount;
     protected int occurrenceThreshold;
 
@@ -87,11 +86,10 @@ public class TOccurrenceSearcher implements IInvertedIndexSearcher {
     protected List<IInvertedListCursor> invListCursorCache = new ArrayList<IInvertedListCursor>(cursorCacheSize);
     protected List<IInvertedListCursor> invListCursors = new ArrayList<IInvertedListCursor>(cursorCacheSize);
 
-    public TOccurrenceSearcher(IHyracksCommonContext ctx, InvertedIndex invIndex, IBinaryTokenizer queryTokenizer) {
+    public TOccurrenceSearcher(IHyracksCommonContext ctx, InvertedIndex invIndex) {
         this.ctx = ctx;
         this.invIndex = invIndex;
         this.invListCmp = MultiComparator.create(invIndex.getInvListElementCmpFactories());
-        this.queryTokenizer = queryTokenizer;
 
         leafFrame = invIndex.getBTree().getLeafFrameFactory().createFrame();
         interiorFrame = invIndex.getBTree().getInteriorFrameFactory().createFrame();
@@ -147,6 +145,7 @@ public class TOccurrenceSearcher implements IInvertedIndexSearcher {
         ITupleReference queryTuple = searchPred.getQueryTuple();
         int queryFieldIndex = searchPred.getQueryFieldIndex();
         IInvertedIndexSearchModifier searchModifier = searchPred.getSearchModifier();
+        IBinaryTokenizer queryTokenizer = searchPred.getQueryTokenizer();
         
         queryTokenAppender.reset(queryTokenFrame, true);                
         queryTokenizer.reset(queryTuple.getFieldData(queryFieldIndex), queryTuple.getFieldStart(queryFieldIndex),
@@ -525,7 +524,7 @@ public class TOccurrenceSearcher implements IInvertedIndexSearcher {
     public int getOccurrenceThreshold() {
         return occurrenceThreshold;
     }
-
+    
     public void printNewResults(int maxResultBufIdx) {
         StringBuffer strBuffer = new StringBuffer();
         for (int i = 0; i <= maxResultBufIdx; i++) {

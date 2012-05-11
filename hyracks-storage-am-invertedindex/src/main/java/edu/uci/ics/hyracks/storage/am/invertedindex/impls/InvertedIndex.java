@@ -43,7 +43,6 @@ import edu.uci.ics.hyracks.storage.am.common.ophelpers.MultiComparator;
 import edu.uci.ics.hyracks.storage.am.invertedindex.api.IInvertedIndexSearcher;
 import edu.uci.ics.hyracks.storage.am.invertedindex.api.IInvertedListBuilder;
 import edu.uci.ics.hyracks.storage.am.invertedindex.api.IInvertedListCursor;
-import edu.uci.ics.hyracks.storage.am.invertedindex.tokenizers.IBinaryTokenizer;
 import edu.uci.ics.hyracks.storage.common.buffercache.IBufferCache;
 import edu.uci.ics.hyracks.storage.common.buffercache.ICachedPage;
 import edu.uci.ics.hyracks.storage.common.file.BufferedFileHandle;
@@ -66,19 +65,16 @@ public class InvertedIndex implements IIndex {
     private final ITypeTraits[] invListTypeTraits;
     private final IBinaryComparatorFactory[] invListCmpFactories;
     private final IInvertedListBuilder invListBuilder;
-    private final IBinaryTokenizer tokenizer;
     private final int numTokenFields;
     private final int numInvListKeys;
 
     public InvertedIndex(IBufferCache bufferCache, BTree btree, ITypeTraits[] invListTypeTraits,
-            IBinaryComparatorFactory[] invListCmpFactories, IInvertedListBuilder invListBuilder,
-            IBinaryTokenizer tokenizer) {
+            IBinaryComparatorFactory[] invListCmpFactories, IInvertedListBuilder invListBuilder) {
         this.bufferCache = bufferCache;
         this.btree = btree;
         this.invListTypeTraits = invListTypeTraits;
         this.invListCmpFactories = invListCmpFactories;
         this.invListBuilder = invListBuilder;
-        this.tokenizer = tokenizer;
         this.numTokenFields = btree.getComparatorFactories().length;
         this.numInvListKeys = invListCmpFactories.length;
     }
@@ -300,7 +296,7 @@ public class InvertedIndex implements IIndex {
         private final IInvertedIndexSearcher searcher;
         
         public InvertedIndexAccessor(InvertedIndex index) {
-            this.searcher = new TOccurrenceSearcher(ctx, index, tokenizer);
+            this.searcher = new TOccurrenceSearcher(ctx, index);
         }
         
         @Override

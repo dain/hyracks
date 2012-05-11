@@ -67,7 +67,7 @@ public class InvertedIndexSearchOperatorNodePushable extends AbstractUnaryInputU
                 .createIndexDataflowHelper(opDesc, ctx, NoOpOperationCallbackProvider.INSTANCE, partition, false);
         invIndexDataflowHelper = new InvertedIndexDataflowHelper(btreeDataflowHelper, opDesc, ctx, partition, false);
         this.queryField = queryField;
-        this.searchPred = new InvertedIndexSearchPredicate(searchModifier);
+        this.searchPred = new InvertedIndexSearchPredicate(opDesc.getTokenizerFactory().createTokenizer(), searchModifier);
         this.recordDescProvider = recordDescProvider;
         this.retainInput = invIndexDataflowHelper.getOperatorDescriptor().getRetainInput();
     }
@@ -110,6 +110,7 @@ public class InvertedIndexSearchOperatorNodePushable extends AbstractUnaryInputU
         appender.reset(writeBuffer, true);
 
         indexAccessor = invIndex.createAccessor();
+        //InvertedIndex.InvertedIndexAccessor accessor =  
         resultCursor = indexAccessor.createSearchCursor();
         writer.open();
     }
