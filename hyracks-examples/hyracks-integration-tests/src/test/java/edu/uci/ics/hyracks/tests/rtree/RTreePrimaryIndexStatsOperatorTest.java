@@ -51,6 +51,7 @@ import edu.uci.ics.hyracks.storage.am.common.dataflow.IIndex;
 import edu.uci.ics.hyracks.storage.am.common.dataflow.IIndexDataflowHelperFactory;
 import edu.uci.ics.hyracks.storage.am.common.dataflow.IIndexRegistryProvider;
 import edu.uci.ics.hyracks.storage.am.common.dataflow.TreeIndexBulkLoadOperatorDescriptor;
+import edu.uci.ics.hyracks.storage.am.common.dataflow.TreeIndexCreateOperatorDescriptor;
 import edu.uci.ics.hyracks.storage.am.common.dataflow.TreeIndexStatsOperatorDescriptor;
 import edu.uci.ics.hyracks.storage.am.common.impls.NoOpOperationCallbackProvider;
 import edu.uci.ics.hyracks.storage.am.rtree.dataflow.RTreeDataflowHelperFactory;
@@ -122,9 +123,20 @@ public class RTreePrimaryIndexStatsOperatorTest extends AbstractIntegrationTest 
                 primaryValueProviderFactories);
         primaryLeafFrameFactory = new RTreeNSMLeafFrameFactory(primaryTupleWriterFactory, primaryValueProviderFactories);
 
+        createPrimaryIndex();
         loadPrimaryIndexTest();
     }
 
+    public void createPrimaryIndex() throws Exception {
+        JobSpecification spec = new JobSpecification();
+        TreeIndexCreateOperatorDescriptor primaryCreateOp = new TreeIndexCreateOperatorDescriptor(spec, storageManager,
+                indexRegistryProvider, primaryRTreeSplitProvider, primaryTypeTraits, primaryComparatorFactories,
+                dataflowHelperFactory, NoOpOperationCallbackProvider.INSTANCE);
+        PartitionConstraintHelper.addAbsoluteLocationConstraint(spec, primaryCreateOp, NC1_ID);
+        spec.addRoot(primaryCreateOp);
+        runTest(spec);
+    }
+    
     public void loadPrimaryIndexTest() throws Exception {
         JobSpecification spec = new JobSpecification();
 

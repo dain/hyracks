@@ -57,10 +57,10 @@ import edu.uci.ics.hyracks.storage.am.common.dataflow.IIndex;
 import edu.uci.ics.hyracks.storage.am.common.dataflow.IIndexDataflowHelperFactory;
 import edu.uci.ics.hyracks.storage.am.common.dataflow.IIndexRegistryProvider;
 import edu.uci.ics.hyracks.storage.am.common.dataflow.TreeIndexBulkLoadOperatorDescriptor;
+import edu.uci.ics.hyracks.storage.am.common.dataflow.TreeIndexCreateOperatorDescriptor;
 import edu.uci.ics.hyracks.storage.am.common.impls.NoOpOperationCallbackProvider;
 import edu.uci.ics.hyracks.storage.am.rtree.dataflow.RTreeDataflowHelperFactory;
 import edu.uci.ics.hyracks.storage.am.rtree.dataflow.RTreeSearchOperatorDescriptor;
-import edu.uci.ics.hyracks.storage.am.rtree.impls.DoublePrimitiveValueProviderFactory;
 import edu.uci.ics.hyracks.storage.am.rtree.util.RTreeUtils;
 import edu.uci.ics.hyracks.storage.common.IStorageManagerInterface;
 import edu.uci.ics.hyracks.test.support.TestIndexRegistryProvider;
@@ -150,10 +150,22 @@ public class RTreeSecondaryIndexSearchOperatorTest extends AbstractIntegrationTe
 
         dataflowHelperFactory = new RTreeDataflowHelperFactory(secondaryValueProviderFactories);
         
+        createPrimaryIndex();
         loadPrimaryBTreeIndexTest();
+        createSecondaryIndex();
         loadSecondaryIndexTest();
     }
 
+    public void createPrimaryIndex() throws Exception {
+        JobSpecification spec = new JobSpecification();
+        TreeIndexCreateOperatorDescriptor primaryCreateOp = new TreeIndexCreateOperatorDescriptor(spec, storageManager,
+                indexRegistryProvider, primaryBTreeSplitProvider, primaryBTreeTypeTraits,
+                primaryBTreeComparatorFactories, btreeDataflowHelperFactory, NoOpOperationCallbackProvider.INSTANCE);
+        PartitionConstraintHelper.addAbsoluteLocationConstraint(spec, primaryCreateOp, NC1_ID);
+        spec.addRoot(primaryCreateOp);
+        runTest(spec);
+    }
+    
     public void loadPrimaryBTreeIndexTest() throws Exception {
         JobSpecification spec = new JobSpecification();
 
@@ -198,6 +210,16 @@ public class RTreeSecondaryIndexSearchOperatorTest extends AbstractIntegrationTe
         runTest(spec);
     }
 
+    public void createSecondaryIndex() throws Exception {
+        JobSpecification spec = new JobSpecification();
+        TreeIndexCreateOperatorDescriptor primaryCreateOp = new TreeIndexCreateOperatorDescriptor(spec, storageManager,
+                indexRegistryProvider, secondaryRTreeSplitProvider, secondaryTypeTraits, secondaryComparatorFactories,
+                dataflowHelperFactory, NoOpOperationCallbackProvider.INSTANCE);
+        PartitionConstraintHelper.addAbsoluteLocationConstraint(spec, primaryCreateOp, NC1_ID);
+        spec.addRoot(primaryCreateOp);
+        runTest(spec);
+    }
+    
     public void loadSecondaryIndexTest() throws Exception {
         JobSpecification spec = new JobSpecification();
 
