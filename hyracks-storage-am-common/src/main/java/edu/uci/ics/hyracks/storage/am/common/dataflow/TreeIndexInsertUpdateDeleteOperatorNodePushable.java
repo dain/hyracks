@@ -78,10 +78,10 @@ public class TreeIndexInsertUpdateDeleteOperatorNodePushable extends AbstractUna
         int tupleCount = accessor.getTupleCount();
         for (int i = 0; i < tupleCount; i++) {
             tuple.reset(accessor, i);
-            if (tupleFilter != null && !tupleFilter.accept(tuple)) {
-            	continue;
-            }
             try {
+            	if (tupleFilter != null && !tupleFilter.accept(tuple)) {
+                	continue;
+                }
                 switch (op) {
                     case INSERT: {
                         indexAccessor.insert(tuple);
