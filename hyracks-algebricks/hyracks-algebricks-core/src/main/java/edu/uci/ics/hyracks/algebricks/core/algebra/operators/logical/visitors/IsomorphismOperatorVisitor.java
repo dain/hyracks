@@ -778,8 +778,10 @@ public class IsomorphismOperatorVisitor implements ILogicalOperatorVisitor<Boole
             deepCopyExpressionRefs(newPrimaryKeyExpressions, op.getPrimaryKeyExpressions());
             List<Mutable<ILogicalExpression>> newSecondaryKeyExpressions = new ArrayList<Mutable<ILogicalExpression>>();
             deepCopyExpressionRefs(newSecondaryKeyExpressions, op.getSecondaryKeyExpressions());
+            List<Mutable<ILogicalExpression>> newFilterExpressions = new ArrayList<Mutable<ILogicalExpression>>();
+            deepCopyExpressionRefs(newFilterExpressions, op.getFilterExpressions());
             return new IndexInsertDeleteOperator(op.getDataSourceIndex(), newPrimaryKeyExpressions,
-                    newSecondaryKeyExpressions, op.getOperation());
+                    newSecondaryKeyExpressions, newFilterExpressions, op.getOperation());
         }
 
         @Override

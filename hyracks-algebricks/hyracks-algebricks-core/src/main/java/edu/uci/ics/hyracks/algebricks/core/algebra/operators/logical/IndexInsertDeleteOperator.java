@@ -22,14 +22,16 @@ public class IndexInsertDeleteOperator extends AbstractLogicalOperator {
     private final IDataSourceIndex<?, ?> dataSourceIndex;
     private final List<Mutable<ILogicalExpression>> primaryKeyExprs;
     private final List<Mutable<ILogicalExpression>> secondaryKeyExprs;
+    private final List<Mutable<ILogicalExpression>> filterExprs;
     private final Kind operation;
 
     public IndexInsertDeleteOperator(IDataSourceIndex<?, ?> dataSourceIndex,
             List<Mutable<ILogicalExpression>> primaryKeyExprs, List<Mutable<ILogicalExpression>> secondaryKeyExprs,
-            Kind operation) {
+            List<Mutable<ILogicalExpression>> filterExprs, Kind operation) {
         this.dataSourceIndex = dataSourceIndex;
         this.primaryKeyExprs = primaryKeyExprs;
         this.secondaryKeyExprs = secondaryKeyExprs;
+        this.filterExprs = filterExprs;
         this.operation = operation;
     }
 
@@ -92,6 +94,10 @@ public class IndexInsertDeleteOperator extends AbstractLogicalOperator {
         return secondaryKeyExprs;
     }
 
+    public List<Mutable<ILogicalExpression>> getFilterExpressions() {
+    	return filterExprs;
+    }
+    
     public Kind getOperation() {
         return operation;
     }
