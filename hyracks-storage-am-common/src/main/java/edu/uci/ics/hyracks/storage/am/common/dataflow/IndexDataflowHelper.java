@@ -51,6 +51,7 @@ public abstract class IndexDataflowHelper {
     		}            
     		fileId = fileMapProvider.lookupFileId(fileRef);
     		try {
+    	    	// Also creates the file if it doesn't exist yet.
     			bufferCache.openFile(fileId);
     		} catch (HyracksDataException e) {
     			// Revert state of buffer cache since file failed to open.
@@ -63,7 +64,6 @@ public abstract class IndexDataflowHelper {
     	// Only set indexFileId member after openFile() succeeds.
     	indexFileId = fileId;    	
     	// Create new index instance and register it.
-        boolean fileExists = fileRef.getFile().exists();
     	synchronized (indexRegistry) {
     		// Check if the index has already been registered.
     		boolean register = false;
@@ -71,14 +71,6 @@ public abstract class IndexDataflowHelper {
     		if (index == null) {
     		    index = createIndexInstance();
     		    register = true;
-    		}
-    		if (!forceCreate && !fileExists) {
-    		    // Revert state of buffer cache.
-                if (!fileIsMapped) {
-                    bufferCache.deleteFile(fileId, false);
-                }
-                throw new HyracksDataException("Trying to access non-existant index file '"
-                        + fileRef.getFile().getAbsolutePath() + "'.");
     		}
     		if (forceCreate) {
     		    index.create(indexFileId);

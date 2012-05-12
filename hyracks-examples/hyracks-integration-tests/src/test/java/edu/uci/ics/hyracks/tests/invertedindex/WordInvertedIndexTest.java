@@ -20,6 +20,7 @@ import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -85,10 +86,10 @@ public class WordInvertedIndexTest extends AbstractIntegrationTest {
 
     private final static SimpleDateFormat simpleDateFormat = new SimpleDateFormat("ddMMyy-hhmmssSS");
     private final static String sep = System.getProperty("file.separator");
-    private final String dateString = simpleDateFormat.format(new Date());
-    private final String primaryFileName = System.getProperty("java.io.tmpdir") + sep + "primaryBtree" + dateString;
-    private final String btreeFileName = System.getProperty("java.io.tmpdir") + sep + "invIndexBtree" + dateString;
-    private final String invListsFileName = System.getProperty("java.io.tmpdir") + sep + "invIndexLists" + dateString;
+    private final static String dateString = simpleDateFormat.format(new Date());
+    private final static String primaryFileName = System.getProperty("java.io.tmpdir") + sep + "primaryBtree" + dateString;
+    private final static String btreeFileName = System.getProperty("java.io.tmpdir") + sep + "invIndexBtree" + dateString;
+    private final static String invListsFileName = System.getProperty("java.io.tmpdir") + sep + "invIndexLists" + dateString;
 
     private IFileSplitProvider primaryFileSplitProvider = new ConstantFileSplitProvider(
             new FileSplit[] { new FileSplit(NC1_ID, new FileReference(new File(primaryFileName))) });
@@ -331,5 +332,15 @@ public class WordInvertedIndexTest extends AbstractIntegrationTest {
         spec.connect(new OneToOneConnectorDescriptor(spec), invIndexSearchOp, 0, printer, 0);
         spec.addRoot(printer);
         runTest(spec);
+    }
+    
+    @AfterClass
+    public static void cleanup() throws Exception {
+    	File primary = new File(primaryFileName);
+    	File btree = new File(btreeFileName);
+    	File invLists = new File(invListsFileName);
+        primary.deleteOnExit();
+        btree.deleteOnExit();
+        invLists.deleteOnExit();
     }
 }
