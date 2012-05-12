@@ -268,7 +268,7 @@ public class BTreeSecondaryIndexInsertOperatorTest extends AbstractIntegrationTe
         TreeIndexInsertUpdateDeleteOperatorDescriptor primaryBtreeInsertOp = new TreeIndexInsertUpdateDeleteOperatorDescriptor(
                 spec, ordersDesc, storageManager, indexRegistryProvider, primaryBtreeSplitProvider,
                 primaryTypeTraits, primaryComparatorFactories,
-                primaryFieldPermutation, IndexOp.INSERT, dataflowHelperFactory, NoOpOperationCallbackProvider.INSTANCE);
+                primaryFieldPermutation, IndexOp.INSERT, dataflowHelperFactory, null, NoOpOperationCallbackProvider.INSTANCE);
         PartitionConstraintHelper.addAbsoluteLocationConstraint(spec, primaryBtreeInsertOp, NC1_ID);
 
         // first secondary index
@@ -276,7 +276,7 @@ public class BTreeSecondaryIndexInsertOperatorTest extends AbstractIntegrationTe
         TreeIndexInsertUpdateDeleteOperatorDescriptor secondaryInsertOp = new TreeIndexInsertUpdateDeleteOperatorDescriptor(
                 spec, ordersDesc, storageManager, indexRegistryProvider, secondaryBtreeSplitProvider,
                 secondaryTypeTraits,
-                secondaryComparatorFactories, fieldPermutationB, IndexOp.INSERT, dataflowHelperFactory, NoOpOperationCallbackProvider.INSTANCE);
+                secondaryComparatorFactories, fieldPermutationB, IndexOp.INSERT, dataflowHelperFactory, null, NoOpOperationCallbackProvider.INSTANCE);
         PartitionConstraintHelper.addAbsoluteLocationConstraint(spec, secondaryInsertOp, NC1_ID);
 
         NullSinkOperatorDescriptor nullSink = new NullSinkOperatorDescriptor(spec);

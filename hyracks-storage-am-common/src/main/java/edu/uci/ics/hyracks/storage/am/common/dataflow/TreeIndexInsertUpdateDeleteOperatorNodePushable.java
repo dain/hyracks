@@ -25,6 +25,8 @@ import edu.uci.ics.hyracks.dataflow.common.comm.util.FrameUtils;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputUnaryOutputOperatorNodePushable;
 import edu.uci.ics.hyracks.storage.am.common.api.IIndexAccessor;
 import edu.uci.ics.hyracks.storage.am.common.api.ITreeIndex;
+import edu.uci.ics.hyracks.storage.am.common.api.ITupleFilter;
+import edu.uci.ics.hyracks.storage.am.common.api.ITupleFilterFactory;
 import edu.uci.ics.hyracks.storage.am.common.ophelpers.IndexOp;
 
 public class TreeIndexInsertUpdateDeleteOperatorNodePushable extends AbstractUnaryInputUnaryOutputOperatorNodePushable {
@@ -35,7 +37,8 @@ public class TreeIndexInsertUpdateDeleteOperatorNodePushable extends AbstractUna
     private final PermutingFrameTupleReference tuple = new PermutingFrameTupleReference();
     private ByteBuffer writeBuffer;
     private IIndexAccessor indexAccessor;
-
+    private ITupleFilter tupleFilter;
+    
     public TreeIndexInsertUpdateDeleteOperatorNodePushable(AbstractTreeIndexOperatorDescriptor opDesc,
             IHyracksTaskContext ctx, int partition, int[] fieldPermutation,
             IRecordDescriptorProvider recordDescProvider, IndexOp op) {
@@ -44,6 +47,10 @@ public class TreeIndexInsertUpdateDeleteOperatorNodePushable extends AbstractUna
         this.recordDescProvider = recordDescProvider;
         this.op = op;
         tuple.setFieldPermutation(fieldPermutation);
+        ITupleFilterFactory tupleFilterFactory = opDesc.getTupleFilterFactory();
+        if (tupleFilterFactory != null) {
+        	tupleFilter = tupleFilterFactory.createTupleFilter();
+        }
     }
 
     @Override
@@ -71,6 +78,9 @@ public class TreeIndexInsertUpdateDeleteOperatorNodePushable extends AbstractUna
         int tupleCount = accessor.getTupleCount();
         for (int i = 0; i < tupleCount; i++) {
             tuple.reset(accessor, i);
+            if (tupleFilter != null && !tupleFilter.accept(tuple)) {
+            	continue;
+            }
             try {
                 switch (op) {
                     case INSERT: {
