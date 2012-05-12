@@ -18,5 +18,5 @@ package edu.uci.ics.hyracks.storage.am.common.api;
 import java.io.Serializable;
 
 public interface ITupleFilterFactory extends Serializable {
-	public ITupleFilter createTupleFilter();
+	public ITupleFilter createTupleFilter() throws Exception;
 }

@@ -15,6 +15,7 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.base.ILogicalOperator;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.IOptimizationContext;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.PhysicalOperatorTag;
+import edu.uci.ics.hyracks.algebricks.core.algebra.expressions.IVariableTypeEnvironment;
 import edu.uci.ics.hyracks.algebricks.core.algebra.metadata.IDataSourceIndex;
 import edu.uci.ics.hyracks.algebricks.core.algebra.metadata.IMetadataProvider;
 import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.AbstractLogicalOperator;
@@ -96,12 +97,13 @@ public class IndexInsertDeletePOperator extends AbstractPhysicalOperator {
                 context);
 
         Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> runtimeAndConstraints = null;
+        IVariableTypeEnvironment typeEnv = context.getTypeEnvironment(insertDeleteOp);
         if (insertDeleteOp.getOperation() == Kind.INSERT) {
-            runtimeAndConstraints = mp.getIndexInsertRuntime(dataSourceIndex, propagatedSchema, primaryKeys,
-                    secondaryKeys, filterExpr, inputDesc, context, spec);
+            runtimeAndConstraints = mp.getIndexInsertRuntime(dataSourceIndex, propagatedSchema, inputSchemas, typeEnv,
+                    primaryKeys, secondaryKeys, filterExpr, inputDesc, context, spec);
         } else {
-            runtimeAndConstraints = mp.getIndexDeleteRuntime(dataSourceIndex, propagatedSchema, primaryKeys,
-                    secondaryKeys, filterExpr, inputDesc, context, spec);
+            runtimeAndConstraints = mp.getIndexDeleteRuntime(dataSourceIndex, propagatedSchema, inputSchemas, typeEnv,
+                    primaryKeys, secondaryKeys, filterExpr, inputDesc, context, spec);
         }
         builder.contributeHyracksOperator(insertDeleteOp, runtimeAndConstraints.first);
         builder.contributeAlgebricksPartitionConstraint(runtimeAndConstraints.first, runtimeAndConstraints.second);
