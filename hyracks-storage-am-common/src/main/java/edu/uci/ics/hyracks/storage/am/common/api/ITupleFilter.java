@@ -15,8 +15,8 @@
 
 package edu.uci.ics.hyracks.storage.am.common.api;
 
-import edu.uci.ics.hyracks.dataflow.common.data.accessors.ITupleReference;
+import edu.uci.ics.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
 public interface ITupleFilter {
-	public boolean accept(ITupleReference tuple);
+	public boolean accept(IFrameTupleReference tuple) throws Exception;
 }
