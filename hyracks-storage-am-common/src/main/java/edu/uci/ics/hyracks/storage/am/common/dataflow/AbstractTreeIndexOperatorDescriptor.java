@@ -105,4 +105,9 @@ public abstract class AbstractTreeIndexOperatorDescriptor extends
 	public boolean getRetainInput() {
 		return retainInput;
 	}
+	
+	@Override
+	public IOperationCallbackProvider getOpCallbackProvider() {
+	    return opCallbackProvider;
+	}
 }

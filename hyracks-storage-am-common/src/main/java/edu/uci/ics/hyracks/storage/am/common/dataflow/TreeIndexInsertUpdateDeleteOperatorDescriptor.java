@@ -49,7 +49,7 @@ public class TreeIndexInsertUpdateDeleteOperatorDescriptor extends AbstractTreeI
     @Override
     public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
             IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
-        return new TreeIndexInsertUpdateDeleteOperatorNodePushable(this, ctx, opCallbackProvider, partition,
-                fieldPermutation, recordDescProvider, op);
+        return new TreeIndexInsertUpdateDeleteOperatorNodePushable(this, ctx, partition, fieldPermutation,
+                recordDescProvider, op);
     }
 }
