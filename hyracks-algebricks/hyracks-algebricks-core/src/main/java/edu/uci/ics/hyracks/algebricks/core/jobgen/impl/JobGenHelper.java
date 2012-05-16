@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
-import edu.uci.ics.hyracks.algebricks.core.algebra.base.ILogicalOperator;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import edu.uci.ics.hyracks.algebricks.core.algebra.expressions.IVariableTypeEnvironment;
 import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
@@ -42,14 +41,13 @@ public final class JobGenHelper {
     private static final Logger LOGGER = Logger.getLogger(JobGenHelper.class.getName());
 
     @SuppressWarnings("rawtypes")
-    public static RecordDescriptor mkRecordDescriptor(ILogicalOperator op, IOperatorSchema opSchema,
+    public static RecordDescriptor mkRecordDescriptor(IVariableTypeEnvironment env, IOperatorSchema opSchema,
             JobGenContext context) throws AlgebricksException {        
 		ISerializerDeserializer[] fields = new ISerializerDeserializer[opSchema.getSize()];
         ITypeTraits[] typeTraits = new ITypeTraits[opSchema.getSize()];
         ISerializerDeserializerProvider sdp = context.getSerializerDeserializerProvider();
         ITypeTraitProvider ttp = context.getTypeTraitProvider();
         int i = 0;
-        IVariableTypeEnvironment env = context.getTypeEnvironment(op);
         for (LogicalVariable var : opSchema) {
             Object t = env.getVarType(var);
             if (t == null) {

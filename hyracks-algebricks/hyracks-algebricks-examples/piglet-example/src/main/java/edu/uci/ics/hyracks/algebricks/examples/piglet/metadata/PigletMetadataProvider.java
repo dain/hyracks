@@ -10,6 +10,7 @@ import edu.uci.ics.hyracks.algebricks.common.constraints.AlgebricksPartitionCons
 import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
 import edu.uci.ics.hyracks.algebricks.common.utils.Pair;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.LogicalVariable;
+import edu.uci.ics.hyracks.algebricks.core.algebra.expressions.IVariableTypeEnvironment;
 import edu.uci.ics.hyracks.algebricks.core.algebra.functions.AlgebricksBuiltinFunctions;
 import edu.uci.ics.hyracks.algebricks.core.algebra.functions.FunctionIdentifier;
 import edu.uci.ics.hyracks.algebricks.core.algebra.functions.IFunctionInfo;
@@ -60,9 +61,13 @@ public class PigletMetadataProvider implements IMetadataProvider<String, String>
 
     @SuppressWarnings("unchecked")
     @Override
-    public Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> getScannerRuntime(IDataSource<String> dataSource,
-            List<LogicalVariable> scanVariables, List<LogicalVariable> projectVariables, boolean projectPushed,
-            JobGenContext context, JobSpecification jobSpec) throws AlgebricksException {
+	public Pair<IOperatorDescriptor, AlgebricksPartitionConstraint> getScannerRuntime(
+			IDataSource<String> dataSource,
+			List<LogicalVariable> scanVariables,
+			List<LogicalVariable> projectVariables, boolean projectPushed,
+			IOperatorSchema opSchema, IVariableTypeEnvironment typeEnv,
+			JobGenContext context, JobSpecification jobSpec)
+			throws AlgebricksException {
         PigletFileDataSource ds = (PigletFileDataSource) dataSource;
 
         FileSplit[] fileSplits = ds.getFileSplits();
@@ -184,4 +189,5 @@ public class PigletMetadataProvider implements IMetadataProvider<String, String>
     public IFunctionInfo lookupFunction(FunctionIdentifier fid) {
         return FN_MAP.get(fid);
     }
+
 }

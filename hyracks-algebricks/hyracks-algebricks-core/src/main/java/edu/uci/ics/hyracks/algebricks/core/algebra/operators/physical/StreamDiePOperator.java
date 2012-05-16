@@ -71,7 +71,7 @@ public class StreamDiePOperator extends AbstractPhysicalOperator {
         IVariableTypeEnvironment env = context.getTypeEnvironment(op);
         IEvaluatorFactory afterObjectsFact = exprJobGen.createEvaluatorFactory(die.getAfterObjects().getValue(), env,
                 inputSchemas, context);
-        RecordDescriptor recDesc = JobGenHelper.mkRecordDescriptor(op, propagatedSchema, context);
+        RecordDescriptor recDesc = JobGenHelper.mkRecordDescriptor(context.getTypeEnvironment(op), propagatedSchema, context);
         StreamDieRuntimeFactory runtime = new StreamDieRuntimeFactory(afterObjectsFact, null,
                 context.getBinaryIntegerInspector());
         builder.contributeMicroOperator(die, runtime, recDesc);
