@@ -726,7 +726,7 @@ public class IsomorphismOperatorVisitor implements ILogicalOperatorVisitor<Boole
             ArrayList<LogicalVariable> newInputList = new ArrayList<LogicalVariable>();
             newInputList.addAll(op.getVariables());
             return new UnnestMapOperator(newInputList, deepCopyExpressionRef(op.getExpressionRef()),
-                    new ArrayList<Object>(op.getVariableTypes()));
+                    new ArrayList<Object>(op.getVariableTypes()), op.propagatesInput());
         }
 
         @Override
