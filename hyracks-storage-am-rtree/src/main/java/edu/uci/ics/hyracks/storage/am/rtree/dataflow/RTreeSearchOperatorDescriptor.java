@@ -42,7 +42,7 @@ public class RTreeSearchOperatorDescriptor extends AbstractTreeIndexOperatorDesc
             IBinaryComparatorFactory[] comparatorFactories, int[] keyFields,
             IIndexDataflowHelperFactory dataflowHelperFactory, boolean retainInput, IOperationCallbackProvider opCallbackProvider) {
         super(spec, 1, 1, recDesc, storageManager, indexRegistryProvider, fileSplitProvider, typeTraits,
-                comparatorFactories, dataflowHelperFactory, retainInput, opCallbackProvider);
+                comparatorFactories, dataflowHelperFactory, null, false, opCallbackProvider);
         this.keyFields = keyFields;
     }
 
