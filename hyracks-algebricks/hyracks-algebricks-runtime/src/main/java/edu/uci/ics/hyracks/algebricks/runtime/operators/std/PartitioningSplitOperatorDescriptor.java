@@ -26,7 +26,8 @@ import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputOperatorNodePusha
 
 public class PartitioningSplitOperatorDescriptor extends AbstractSingleActivityOperatorDescriptor {
     private static final long serialVersionUID = 1L;
-
+    private static final int DEFAULT_BRANCH = 0;
+    
     private final IEvaluatorFactory[] evalFactories;
     private final IBinaryBooleanInspector boolInspector;
     private final boolean hasDefaultBranch;
@@ -86,40 +87,47 @@ public class PartitioningSplitOperatorDescriptor extends AbstractSingleActivityO
                     boolean found = false;
                     for (int j = 0; j < evals.length; j++) {
                         try {
+                        	evalBuf.reset();
                             evals[j].evaluate(frameTuple);
                         } catch (AlgebricksException e) {
                             throw new HyracksDataException(e);
                         }
-                        found = boolInspector.getBooleanValue(evalBuf.getBytes(), 0, 1);
+                        found = boolInspector.getBooleanValue(evalBuf.getByteArray(), 0, 1);
                         if (found) {
-                            // Copy tuple into tuple builder.
-                            try {
-                                for (int k = 0; k < frameTuple.getFieldCount(); k++) {
-                                    tupleDos.write(frameTuple.getFieldData(k), frameTuple.getFieldStart(k),
-                                            frameTuple.getFieldLength(k));
-                                    tupleBuilder.addFieldEndOffset();
-                                }
-                            } catch (IOException e) {
-                                throw new HyracksDataException(e);
-                            }
-                            // Append to frame.
-                            tupleAppender.reset(writeBuffers[j], false);
-                            if (!tupleAppender.append(tupleBuilder.getFieldEndOffsets(), tupleBuilder.getByteArray(), 0, tupleBuilder.getSize())) {
-                                FrameUtils.flushFrame(writeBuffers[j], writers[j]);
-                                tupleAppender.reset(writeBuffers[j], true);
-                                if (!tupleAppender.append(tupleBuilder.getFieldEndOffsets(), tupleBuilder.getByteArray(), 0, tupleBuilder.getSize())) {
-                                    throw new IllegalStateException();
-                                }
-                            }
+                        	copyAndAppendTuple(j);
+                        	break;
                         }
                     }
                     // Optionally write to default partition.
                     if (!found && hasDefaultBranch) {
-                        tupleAppender.reset(writeBuffers[0], true);
+                    	copyAndAppendTuple(DEFAULT_BRANCH);
                     }
                 }
             }
 
+            private void copyAndAppendTuple(int outputIndex) throws HyracksDataException {
+            	// Copy tuple into tuple builder.
+                try {
+                	tupleBuilder.reset();
+                    for (int i = 0; i < frameTuple.getFieldCount(); i++) {
+                        tupleDos.write(frameTuple.getFieldData(i), frameTuple.getFieldStart(i),
+                                frameTuple.getFieldLength(i));
+                        tupleBuilder.addFieldEndOffset();
+                    }
+                } catch (IOException e) {
+                    throw new HyracksDataException(e);
+                }
+                // Append to frame.
+                tupleAppender.reset(writeBuffers[outputIndex], false);
+                if (!tupleAppender.append(tupleBuilder.getFieldEndOffsets(), tupleBuilder.getByteArray(), 0, tupleBuilder.getSize())) {
+                    FrameUtils.flushFrame(writeBuffers[outputIndex], writers[outputIndex]);
+                    tupleAppender.reset(writeBuffers[outputIndex], true);
+                    if (!tupleAppender.append(tupleBuilder.getFieldEndOffsets(), tupleBuilder.getByteArray(), 0, tupleBuilder.getSize())) {
+                        throw new IllegalStateException();
+                    }
+                }
+            }
+            
             @Override
             public void open() throws HyracksDataException {
                 for (IFrameWriter writer : writers) {
@@ -128,7 +136,7 @@ public class PartitioningSplitOperatorDescriptor extends AbstractSingleActivityO
                 // Create write buffers.
                 for (int i = 0; i < outputArity; i++) {
                     writeBuffers[i] = ctx.allocateFrame();
-                    // Make sure to clear all buffers.
+                    // Make sure to clear all buffers, since we are reusing the tupleAppender.
                     tupleAppender.reset(writeBuffers[i], true);
                 }
                 // Create evaluators for partitioning.
@@ -139,8 +147,6 @@ public class PartitioningSplitOperatorDescriptor extends AbstractSingleActivityO
 				} catch (AlgebricksException e) {
 					throw new HyracksDataException(e);
 				}
-				
-				
             }
 
             @Override
