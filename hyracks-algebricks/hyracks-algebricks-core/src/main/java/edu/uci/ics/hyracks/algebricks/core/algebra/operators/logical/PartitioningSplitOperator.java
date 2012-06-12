@@ -28,6 +28,17 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.typing.ITypingContext;
 import edu.uci.ics.hyracks.algebricks.core.algebra.visitors.ILogicalExpressionReferenceTransform;
 import edu.uci.ics.hyracks.algebricks.core.algebra.visitors.ILogicalOperatorVisitor;
 
+/**
+ * Partitions it's input based on a given list of expressions.
+ * Each expression is assumed to return true/false,
+ * and there is exactly one output branch per expression.
+ * For each input tuple, the expressions are evaluated one-by-one,
+ * and the tuple is written to first output branch whose corresponding
+ * expression evaluates to true.
+ * If all expressions evaluate to false, then
+ * the tuple is written to the default output branch, which is branch 0 by convention.
+ * Optionally, the default output branch can be disabled causing such tuples to be dropped instead.
+ */
 public class PartitioningSplitOperator extends AbstractLogicalOperator {
 
     private Mutable<ILogicalExpression>[] expressions;
