@@ -99,7 +99,7 @@ public class PartitioningSplitOperatorDescriptor extends AbstractSingleActivityO
                         	break;
                         }
                     }
-                    // Optionally write to default partition.
+                    // Optionally write to default output branch.
                     if (!found && defaultBranchIndex != NO_DEFAULT_BRANCH) {
                     	copyAndAppendTuple(defaultBranchIndex);
                     }
