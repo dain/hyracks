@@ -679,7 +679,7 @@ public class IsomorphismOperatorVisitor implements ILogicalOperatorVisitor<Boole
             ArrayList<Mutable<ILogicalExpression>> newExpressions = new ArrayList<Mutable<ILogicalExpression>>();
             deepCopyExpressionRefs(newExpressions, Arrays.asList(op.getExpressions()));
             return new PartitioningSplitOperator(newExpressions.toArray(new Mutable[0]),
-                    op.hasDefault());
+                    op.getDefaultBranchIndex());
         }
 
         @Override

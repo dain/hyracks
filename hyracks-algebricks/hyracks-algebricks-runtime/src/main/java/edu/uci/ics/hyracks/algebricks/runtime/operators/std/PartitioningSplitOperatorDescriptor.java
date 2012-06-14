@@ -26,20 +26,21 @@ import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputOperatorNodePusha
 
 public class PartitioningSplitOperatorDescriptor extends AbstractSingleActivityOperatorDescriptor {
     private static final long serialVersionUID = 1L;
-    private static final int DEFAULT_BRANCH = 0;
+    public static int NO_DEFAULT_BRANCH = -1;
     
     private final IEvaluatorFactory[] evalFactories;
     private final IBinaryBooleanInspector boolInspector;
-    private final boolean hasDefaultBranch;
+    private final int defaultBranchIndex;
     
-    public PartitioningSplitOperatorDescriptor(IOperatorDescriptorRegistry spec, IEvaluatorFactory[] evalFactories, IBinaryBooleanInspector boolInspector, boolean hasDefaultBranch, RecordDescriptor rDesc) {        
-    	super(spec, 1, evalFactories.length);
+    public PartitioningSplitOperatorDescriptor(IOperatorDescriptorRegistry spec, IEvaluatorFactory[] evalFactories,
+            IBinaryBooleanInspector boolInspector, int defaultBranchIndex, RecordDescriptor rDesc) {
+        super(spec, 1, (defaultBranchIndex == evalFactories.length) ? evalFactories.length + 1 : evalFactories.length);
         for (int i = 0; i < evalFactories.length; i++) {
             recordDescriptors[i] = rDesc;
         }
         this.evalFactories = evalFactories;
         this.boolInspector = boolInspector;
-        this.hasDefaultBranch = hasDefaultBranch;
+        this.defaultBranchIndex = defaultBranchIndex;
     }
 
     @Override
@@ -99,8 +100,8 @@ public class PartitioningSplitOperatorDescriptor extends AbstractSingleActivityO
                         }
                     }
                     // Optionally write to default partition.
-                    if (!found && hasDefaultBranch) {
-                    	copyAndAppendTuple(DEFAULT_BRANCH);
+                    if (!found && defaultBranchIndex != NO_DEFAULT_BRANCH) {
+                    	copyAndAppendTuple(defaultBranchIndex);
                     }
                 }
             }

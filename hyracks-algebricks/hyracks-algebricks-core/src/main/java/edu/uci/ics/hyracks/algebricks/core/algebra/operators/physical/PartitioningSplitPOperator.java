@@ -59,8 +59,8 @@ public class PartitioningSplitPOperator extends AbstractPhysicalOperator {
         }
         RecordDescriptor recDesc = JobGenHelper.mkRecordDescriptor(context.getTypeEnvironment(op), opSchema, context);
         PartitioningSplitOperatorDescriptor partSplitOpDesc = new PartitioningSplitOperatorDescriptor(
-                builder.getJobSpec(), evalFactories, context.getBinaryBooleanInspector(), partSplitOp.hasDefault(),
-                recDesc);
+                builder.getJobSpec(), evalFactories, context.getBinaryBooleanInspector(),
+                partSplitOp.getDefaultBranchIndex(), recDesc);
         contributeOpDesc(builder, partSplitOp, partSplitOpDesc);
         ILogicalOperator srcExchange = partSplitOp.getInputs().get(0).getValue();
         builder.contributeGraphEdge(srcExchange, 0, partSplitOp, 0);

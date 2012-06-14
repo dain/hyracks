@@ -27,36 +27,48 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.properties.VariablePropagatio
 import edu.uci.ics.hyracks.algebricks.core.algebra.typing.ITypingContext;
 import edu.uci.ics.hyracks.algebricks.core.algebra.visitors.ILogicalExpressionReferenceTransform;
 import edu.uci.ics.hyracks.algebricks.core.algebra.visitors.ILogicalOperatorVisitor;
+import edu.uci.ics.hyracks.algebricks.runtime.operators.std.PartitioningSplitOperatorDescriptor;
 
 /**
  * Partitions it's input based on a given list of expressions.
  * Each expression is assumed to return true/false,
- * and there is exactly one output branch per expression.
+ * and there is exactly one output branch per expression (optionally, plus one default branch).
  * For each input tuple, the expressions are evaluated one-by-one,
  * and the tuple is written to first output branch whose corresponding
  * expression evaluates to true.
  * If all expressions evaluate to false, then
- * the tuple is written to the default output branch, which is branch 0 by convention.
- * Optionally, the default output branch can be disabled causing such tuples to be dropped instead.
+ * the tuple is written to the default output branch, if any was given.
+ * If no output branch was given, then such tuples are simply dropped.
+ * Given N expressions there may be N or N+1 output branches because the default output branch may be separate from the regular output branches.
  */
 public class PartitioningSplitOperator extends AbstractLogicalOperator {
 
-    private Mutable<ILogicalExpression>[] expressions;
-    private boolean hasDefault;
+    private final Mutable<ILogicalExpression>[] expressions;
+    private final int defaultBranchIndex;
 
-    public PartitioningSplitOperator(Mutable<ILogicalExpression>[] exprList, boolean defaultBranchDefined) {
-        expressions = exprList;
-        hasDefault = defaultBranchDefined;
+    public PartitioningSplitOperator(Mutable<ILogicalExpression>[] expressions, int defaultBranchIndex) throws AlgebricksException {
+        this.expressions = expressions;
+        this.defaultBranchIndex = defaultBranchIndex;
+        // Check that the default output branch index is in [0, N], where N is the number of expressions.
+        if (defaultBranchIndex != PartitioningSplitOperatorDescriptor.NO_DEFAULT_BRANCH
+                && defaultBranchIndex > expressions.length) {
+            throw new AlgebricksException("Default branch index out of bounds. Number of exprs given: "
+                    + expressions.length + ". The maximum default branch index may therefore be: " + expressions.length);
+        }
     }
 
     public Mutable<ILogicalExpression>[] getExpressions() {
         return expressions;
     }
 
-    public boolean hasDefault() {
-        return hasDefault;
+    public int getDefaultBranchIndex() {
+        return defaultBranchIndex;
     }
-
+    
+    public int getNumOutputBranches() {
+        return (defaultBranchIndex == expressions.length) ? expressions.length + 1 : expressions.length;
+    }
+    
     @Override
     public LogicalOperatorTag getOperatorTag() {
         return LogicalOperatorTag.PARTITIONINGSPLIT;
