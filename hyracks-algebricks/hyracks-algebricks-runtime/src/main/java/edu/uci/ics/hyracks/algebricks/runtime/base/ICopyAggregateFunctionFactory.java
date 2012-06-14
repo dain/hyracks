@@ -19,6 +19,6 @@ import java.io.Serializable;
 import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
 import edu.uci.ics.hyracks.dataflow.common.data.accessors.IDataOutputProvider;
 
-public interface IUnnestingFunctionFactory extends Serializable {
-    public IUnnestingFunction createUnnestingFunction(IDataOutputProvider provider) throws AlgebricksException;
+public interface ICopyAggregateFunctionFactory extends Serializable {
+    public ICopyAggregateFunction createAggregateFunction(IDataOutputProvider provider) throws AlgebricksException;
 }
