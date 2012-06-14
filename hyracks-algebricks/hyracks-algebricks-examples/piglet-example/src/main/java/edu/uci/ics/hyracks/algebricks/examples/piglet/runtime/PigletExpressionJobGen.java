@@ -24,7 +24,7 @@ import edu.uci.ics.hyracks.algebricks.examples.piglet.exceptions.PigletException
 import edu.uci.ics.hyracks.algebricks.examples.piglet.runtime.functions.PigletFunctionRegistry;
 import edu.uci.ics.hyracks.algebricks.examples.piglet.types.Type;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IAggregateFunctionFactory;
-import edu.uci.ics.hyracks.algebricks.runtime.base.IEvaluatorFactory;
+import edu.uci.ics.hyracks.algebricks.runtime.base.ICopyEvaluatorFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IRunningAggregateFunctionFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.ISerializableAggregateFunctionFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IUnnestingFunctionFactory;
@@ -36,7 +36,7 @@ import edu.uci.ics.hyracks.dataflow.common.data.marshalling.UTF8StringSerializer
 
 public class PigletExpressionJobGen implements ILogicalExpressionJobGen {
     @Override
-    public IEvaluatorFactory createEvaluatorFactory(ILogicalExpression expr, IVariableTypeEnvironment env,
+    public ICopyEvaluatorFactory createEvaluatorFactory(ILogicalExpression expr, IVariableTypeEnvironment env,
             IOperatorSchema[] inputSchemas, JobGenContext context) throws AlgebricksException {
         switch (expr.getExpressionTag()) {
             case CONSTANT: {
@@ -72,12 +72,12 @@ public class PigletExpressionJobGen implements ILogicalExpressionJobGen {
                 ScalarFunctionCallExpression sfce = (ScalarFunctionCallExpression) expr;
 
                 List<Mutable<ILogicalExpression>> argExprs = sfce.getArguments();
-                IEvaluatorFactory argEvalFactories[] = new IEvaluatorFactory[argExprs.size()];
+                ICopyEvaluatorFactory argEvalFactories[] = new ICopyEvaluatorFactory[argExprs.size()];
                 for (int i = 0; i < argEvalFactories.length; ++i) {
                     Mutable<ILogicalExpression> er = argExprs.get(i);
                     argEvalFactories[i] = createEvaluatorFactory(er.getValue(), env, inputSchemas, context);
                 }
-                IEvaluatorFactory funcEvalFactory;
+                ICopyEvaluatorFactory funcEvalFactory;
                 try {
                     funcEvalFactory = PigletFunctionRegistry.createFunctionEvaluatorFactory(
                             sfce.getFunctionIdentifier(), argEvalFactories);

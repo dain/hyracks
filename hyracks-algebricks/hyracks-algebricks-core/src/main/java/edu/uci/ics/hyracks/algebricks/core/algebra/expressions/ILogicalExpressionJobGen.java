@@ -19,14 +19,14 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
 import edu.uci.ics.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IAggregateFunctionFactory;
-import edu.uci.ics.hyracks.algebricks.runtime.base.IEvaluatorFactory;
+import edu.uci.ics.hyracks.algebricks.runtime.base.ICopyEvaluatorFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IRunningAggregateFunctionFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.ISerializableAggregateFunctionFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IUnnestingFunctionFactory;
 
 public interface ILogicalExpressionJobGen {
 
-    public IEvaluatorFactory createEvaluatorFactory(ILogicalExpression expr, IVariableTypeEnvironment env,
+    public ICopyEvaluatorFactory createEvaluatorFactory(ILogicalExpression expr, IVariableTypeEnvironment env,
             IOperatorSchema[] inputSchemas, JobGenContext context) throws AlgebricksException;
 
     public IAggregateFunctionFactory createAggregateFunctionFactory(AggregateFunctionCallExpression expr,

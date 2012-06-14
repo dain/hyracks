@@ -17,6 +17,6 @@ package edu.uci.ics.hyracks.algebricks.runtime.base;
 import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
 import edu.uci.ics.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
-public interface IEvaluator {
+public interface ICopyEvaluator {
     public void evaluate(IFrameTupleReference tuple) throws AlgebricksException;
 }
