@@ -1,5 +1,7 @@
 package edu.uci.ics.hyracks.algebricks.core.algebra.operators.physical;
 
+import java.util.List;
+
 import org.apache.commons.lang3.mutable.Mutable;
 
 import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
@@ -50,11 +52,11 @@ public class PartitioningSplitPOperator extends AbstractPhysicalOperator {
             IOperatorSchema opSchema, IOperatorSchema[] inputSchemas, IOperatorSchema outerPlanSchema)
             throws AlgebricksException {
         PartitioningSplitOperator partSplitOp = (PartitioningSplitOperator) op;
-        Mutable<ILogicalExpression>[] expressions = partSplitOp.getExpressions();
-        ICopyEvaluatorFactory[] evalFactories = new ICopyEvaluatorFactory[expressions.length];
+        List<Mutable<ILogicalExpression>> expressions = partSplitOp.getExpressions();
+        ICopyEvaluatorFactory[] evalFactories = new ICopyEvaluatorFactory[expressions.size()];
         ILogicalExpressionJobGen exprJobGen = context.getExpressionJobGen();
         for (int i = 0; i < evalFactories.length; i++) {
-            evalFactories[i] = exprJobGen.createEvaluatorFactory(expressions[i].getValue(),
+            evalFactories[i] = exprJobGen.createEvaluatorFactory(expressions.get(i).getValue(),
                     context.getTypeEnvironment(op.getInputs().get(0).getValue()), inputSchemas, context);
         }
         RecordDescriptor recDesc = JobGenHelper.mkRecordDescriptor(context.getTypeEnvironment(op), opSchema, context);

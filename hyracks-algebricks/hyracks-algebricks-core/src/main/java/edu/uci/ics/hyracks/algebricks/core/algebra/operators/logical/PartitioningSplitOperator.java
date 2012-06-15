@@ -15,6 +15,7 @@
 package edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.lang3.mutable.Mutable;
 
@@ -43,21 +44,21 @@ import edu.uci.ics.hyracks.algebricks.runtime.operators.std.PartitioningSplitOpe
  */
 public class PartitioningSplitOperator extends AbstractLogicalOperator {
 
-    private final Mutable<ILogicalExpression>[] expressions;
+    private final List<Mutable<ILogicalExpression>> expressions;
     private final int defaultBranchIndex;
 
-    public PartitioningSplitOperator(Mutable<ILogicalExpression>[] expressions, int defaultBranchIndex) throws AlgebricksException {
+    public PartitioningSplitOperator(List<Mutable<ILogicalExpression>> expressions, int defaultBranchIndex) throws AlgebricksException {
         this.expressions = expressions;
         this.defaultBranchIndex = defaultBranchIndex;
         // Check that the default output branch index is in [0, N], where N is the number of expressions.
         if (defaultBranchIndex != PartitioningSplitOperatorDescriptor.NO_DEFAULT_BRANCH
-                && defaultBranchIndex > expressions.length) {
+                && defaultBranchIndex > expressions.size()) {
             throw new AlgebricksException("Default branch index out of bounds. Number of exprs given: "
-                    + expressions.length + ". The maximum default branch index may therefore be: " + expressions.length);
+                    + expressions.size() + ". The maximum default branch index may therefore be: " + expressions.size());
         }
     }
 
-    public Mutable<ILogicalExpression>[] getExpressions() {
+    public List<Mutable<ILogicalExpression>> getExpressions() {
         return expressions;
     }
 
@@ -66,7 +67,7 @@ public class PartitioningSplitOperator extends AbstractLogicalOperator {
     }
     
     public int getNumOutputBranches() {
-        return (defaultBranchIndex == expressions.length) ? expressions.length + 1 : expressions.length;
+        return (defaultBranchIndex == expressions.size()) ? expressions.size() + 1 : expressions.size();
     }
     
     @Override
@@ -88,8 +89,8 @@ public class PartitioningSplitOperator extends AbstractLogicalOperator {
     @Override
     public boolean acceptExpressionTransform(ILogicalExpressionReferenceTransform visitor) throws AlgebricksException {
         boolean b = false;
-        for (int i = 0; i < expressions.length; i++) {
-            if (visitor.transform(expressions[i])) {
+        for (int i = 0; i < expressions.size(); i++) {
+            if (visitor.transform(expressions.get(i))) {
                 b = true;
             }
         }
