@@ -17,7 +17,7 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.properties.PhysicalRequiremen
 import edu.uci.ics.hyracks.algebricks.core.algebra.properties.StructuralPropertiesVector;
 import edu.uci.ics.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import edu.uci.ics.hyracks.algebricks.core.jobgen.impl.JobGenHelper;
-import edu.uci.ics.hyracks.algebricks.runtime.base.IEvaluatorFactory;
+import edu.uci.ics.hyracks.algebricks.runtime.base.ICopyEvaluatorFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.operators.std.PartitioningSplitOperatorDescriptor;
 import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
 
@@ -51,7 +51,7 @@ public class PartitioningSplitPOperator extends AbstractPhysicalOperator {
             throws AlgebricksException {
         PartitioningSplitOperator partSplitOp = (PartitioningSplitOperator) op;
         Mutable<ILogicalExpression>[] expressions = partSplitOp.getExpressions();
-        IEvaluatorFactory[] evalFactories = new IEvaluatorFactory[expressions.length];
+        ICopyEvaluatorFactory[] evalFactories = new ICopyEvaluatorFactory[expressions.length];
         ILogicalExpressionJobGen exprJobGen = context.getExpressionJobGen();
         for (int i = 0; i < evalFactories.length; i++) {
             evalFactories[i] = exprJobGen.createEvaluatorFactory(expressions[i].getValue(),

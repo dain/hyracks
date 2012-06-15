@@ -6,8 +6,8 @@ import java.nio.ByteBuffer;
 
 import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
 import edu.uci.ics.hyracks.algebricks.data.IBinaryBooleanInspector;
-import edu.uci.ics.hyracks.algebricks.runtime.base.IEvaluator;
-import edu.uci.ics.hyracks.algebricks.runtime.base.IEvaluatorFactory;
+import edu.uci.ics.hyracks.algebricks.runtime.base.ICopyEvaluator;
+import edu.uci.ics.hyracks.algebricks.runtime.base.ICopyEvaluatorFactory;
 import edu.uci.ics.hyracks.api.comm.IFrameWriter;
 import edu.uci.ics.hyracks.api.context.IHyracksTaskContext;
 import edu.uci.ics.hyracks.api.dataflow.IOperatorNodePushable;
@@ -28,11 +28,11 @@ public class PartitioningSplitOperatorDescriptor extends AbstractSingleActivityO
     private static final long serialVersionUID = 1L;
     public static int NO_DEFAULT_BRANCH = -1;
     
-    private final IEvaluatorFactory[] evalFactories;
+    private final ICopyEvaluatorFactory[] evalFactories;
     private final IBinaryBooleanInspector boolInspector;
     private final int defaultBranchIndex;
     
-    public PartitioningSplitOperatorDescriptor(IOperatorDescriptorRegistry spec, IEvaluatorFactory[] evalFactories,
+    public PartitioningSplitOperatorDescriptor(IOperatorDescriptorRegistry spec, ICopyEvaluatorFactory[] evalFactories,
             IBinaryBooleanInspector boolInspector, int defaultBranchIndex, RecordDescriptor rDesc) {
         super(spec, 1, (defaultBranchIndex == evalFactories.length) ? evalFactories.length + 1 : evalFactories.length);
         for (int i = 0; i < evalFactories.length; i++) {
@@ -50,7 +50,7 @@ public class PartitioningSplitOperatorDescriptor extends AbstractSingleActivityO
         return new AbstractUnaryInputOperatorNodePushable() {
             private final IFrameWriter[] writers = new IFrameWriter[outputArity];
             private final ByteBuffer[] writeBuffers = new ByteBuffer[outputArity];
-            private final IEvaluator[] evals = new IEvaluator[outputArity];
+            private final ICopyEvaluator[] evals = new ICopyEvaluator[outputArity];
             private final ArrayBackedValueStorage evalBuf = new ArrayBackedValueStorage();
             private final RecordDescriptor inOutRecDesc = recordDescProvider.getInputRecordDescriptor(getOperatorId(), 0);
             private final FrameTupleAccessor accessor = new FrameTupleAccessor(ctx.getFrameSize(), inOutRecDesc);
