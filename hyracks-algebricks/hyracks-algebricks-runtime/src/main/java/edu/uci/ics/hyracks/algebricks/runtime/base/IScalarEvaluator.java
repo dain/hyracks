@@ -14,10 +14,10 @@
  */
 package edu.uci.ics.hyracks.algebricks.runtime.base;
 
-import java.io.Serializable;
-
 import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
+import edu.uci.ics.hyracks.data.std.api.IPointable;
+import edu.uci.ics.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
-public interface IEvaluatorFactory extends Serializable {
-    public IEvaluator createEvaluator() throws AlgebricksException;
+public interface IScalarEvaluator {
+    public void evaluate(IFrameTupleReference tuple, IPointable result) throws AlgebricksException;
 }

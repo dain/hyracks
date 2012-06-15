@@ -4,8 +4,8 @@ import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
 import edu.uci.ics.hyracks.algebricks.core.jobgen.impl.JobGenContext;
-import edu.uci.ics.hyracks.algebricks.runtime.base.IAggregateFunction;
-import edu.uci.ics.hyracks.algebricks.runtime.base.IAggregateFunctionFactory;
+import edu.uci.ics.hyracks.algebricks.runtime.base.IAggregateEvaluator;
+import edu.uci.ics.hyracks.algebricks.runtime.base.IAggregateEvaluatorFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.ICopyAggregateFunction;
 import edu.uci.ics.hyracks.algebricks.runtime.base.ICopyAggregateFunctionFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.ICopyEvaluator;
@@ -15,12 +15,12 @@ import edu.uci.ics.hyracks.algebricks.runtime.base.ICopyRunningAggregateFunction
 import edu.uci.ics.hyracks.algebricks.runtime.base.ICopySerializableAggregateFunctionFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.ICopyUnnestingFunction;
 import edu.uci.ics.hyracks.algebricks.runtime.base.ICopyUnnestingFunctionFactory;
-import edu.uci.ics.hyracks.algebricks.runtime.base.IEvaluator;
-import edu.uci.ics.hyracks.algebricks.runtime.base.IEvaluatorFactory;
-import edu.uci.ics.hyracks.algebricks.runtime.base.IRunningAggregateFunction;
-import edu.uci.ics.hyracks.algebricks.runtime.base.IRunningAggregateFunctionFactory;
-import edu.uci.ics.hyracks.algebricks.runtime.base.IUnnestingFunction;
-import edu.uci.ics.hyracks.algebricks.runtime.base.IUnnestingFunctionFactory;
+import edu.uci.ics.hyracks.algebricks.runtime.base.IScalarEvaluator;
+import edu.uci.ics.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
+import edu.uci.ics.hyracks.algebricks.runtime.base.IRunningAggregateEvaluator;
+import edu.uci.ics.hyracks.algebricks.runtime.base.IRunningAggregateEvaluatorFactory;
+import edu.uci.ics.hyracks.algebricks.runtime.base.IUnnestingEvaluator;
+import edu.uci.ics.hyracks.algebricks.runtime.base.IUnnestingEvaluatorFactory;
 import edu.uci.ics.hyracks.data.std.api.IPointable;
 import edu.uci.ics.hyracks.dataflow.common.data.accessors.ArrayBackedValueStorage;
 import edu.uci.ics.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
@@ -33,14 +33,14 @@ public class LogicalExpressionJobGenToExpressionRuntimeProviderAdapter implement
     }
 
     @Override
-    public IEvaluatorFactory createEvaluatorFactory(ILogicalExpression expr, IVariableTypeEnvironment env,
+    public IScalarEvaluatorFactory createEvaluatorFactory(ILogicalExpression expr, IVariableTypeEnvironment env,
             IOperatorSchema[] inputSchemas, JobGenContext context) throws AlgebricksException {
         ICopyEvaluatorFactory cef = lejg.createEvaluatorFactory(expr, env, inputSchemas, context);
         return new EvaluatorFactoryAdapter(cef);
     }
 
     @Override
-    public IAggregateFunctionFactory createAggregateFunctionFactory(AggregateFunctionCallExpression expr,
+    public IAggregateEvaluatorFactory createAggregateFunctionFactory(AggregateFunctionCallExpression expr,
             IVariableTypeEnvironment env, IOperatorSchema[] inputSchemas, JobGenContext context)
             throws AlgebricksException {
         ICopyAggregateFunctionFactory caff = lejg.createAggregateFunctionFactory(expr, env, inputSchemas, context);
@@ -55,7 +55,7 @@ public class LogicalExpressionJobGenToExpressionRuntimeProviderAdapter implement
     }
 
     @Override
-    public IRunningAggregateFunctionFactory createRunningAggregateFunctionFactory(StatefulFunctionCallExpression expr,
+    public IRunningAggregateEvaluatorFactory createRunningAggregateFunctionFactory(StatefulFunctionCallExpression expr,
             IVariableTypeEnvironment env, IOperatorSchema[] inputSchemas, JobGenContext context)
             throws AlgebricksException {
         ICopyRunningAggregateFunctionFactory craff = lejg.createRunningAggregateFunctionFactory(expr, env,
@@ -64,14 +64,14 @@ public class LogicalExpressionJobGenToExpressionRuntimeProviderAdapter implement
     }
 
     @Override
-    public IUnnestingFunctionFactory createUnnestingFunctionFactory(UnnestingFunctionCallExpression expr,
+    public IUnnestingEvaluatorFactory createUnnestingFunctionFactory(UnnestingFunctionCallExpression expr,
             IVariableTypeEnvironment env, IOperatorSchema[] inputSchemas, JobGenContext context)
             throws AlgebricksException {
         ICopyUnnestingFunctionFactory cuff = lejg.createUnnestingFunctionFactory(expr, env, inputSchemas, context);
         return new UnnestingFunctionFactoryAdapter(cuff);
     }
 
-    private static final class EvaluatorFactoryAdapter implements IEvaluatorFactory {
+    private static final class EvaluatorFactoryAdapter implements IScalarEvaluatorFactory {
         private static final long serialVersionUID = 1L;
 
         private final ICopyEvaluatorFactory cef;
@@ -81,10 +81,10 @@ public class LogicalExpressionJobGenToExpressionRuntimeProviderAdapter implement
         }
 
         @Override
-        public IEvaluator createEvaluator() throws AlgebricksException {
+        public IScalarEvaluator createScalarEvaluator() throws AlgebricksException {
             final ArrayBackedValueStorage abvs = new ArrayBackedValueStorage();
             final ICopyEvaluator ce = cef.createEvaluator(abvs);
-            return new IEvaluator() {
+            return new IScalarEvaluator() {
                 @Override
                 public void evaluate(IFrameTupleReference tuple, IPointable result) throws AlgebricksException {
                     abvs.reset();
@@ -95,7 +95,7 @@ public class LogicalExpressionJobGenToExpressionRuntimeProviderAdapter implement
         }
     }
 
-    private static final class AggregateFunctionFactoryAdapter implements IAggregateFunctionFactory {
+    private static final class AggregateFunctionFactoryAdapter implements IAggregateEvaluatorFactory {
         private static final long serialVersionUID = 1L;
 
         private final ICopyAggregateFunctionFactory caff;
@@ -105,10 +105,10 @@ public class LogicalExpressionJobGenToExpressionRuntimeProviderAdapter implement
         }
 
         @Override
-        public IAggregateFunction createAggregateFunction() throws AlgebricksException {
+        public IAggregateEvaluator createAggregateEvaluator() throws AlgebricksException {
             final ArrayBackedValueStorage abvs = new ArrayBackedValueStorage();
             final ICopyAggregateFunction caf = caff.createAggregateFunction(abvs);
-            return new IAggregateFunction() {
+            return new IAggregateEvaluator() {
                 @Override
                 public void step(IFrameTupleReference tuple) throws AlgebricksException {
                     caf.step(tuple);
@@ -134,7 +134,7 @@ public class LogicalExpressionJobGenToExpressionRuntimeProviderAdapter implement
         }
     }
 
-    private static final class RunningAggregateFunctionFactoryAdapter implements IRunningAggregateFunctionFactory {
+    private static final class RunningAggregateFunctionFactoryAdapter implements IRunningAggregateEvaluatorFactory {
         private static final long serialVersionUID = 1L;
 
         private final ICopyRunningAggregateFunctionFactory craff;
@@ -144,10 +144,10 @@ public class LogicalExpressionJobGenToExpressionRuntimeProviderAdapter implement
         }
 
         @Override
-        public IRunningAggregateFunction createRunningAggregateFunction() throws AlgebricksException {
+        public IRunningAggregateEvaluator createRunningAggregateEvaluator() throws AlgebricksException {
             final ArrayBackedValueStorage abvs = new ArrayBackedValueStorage();
             final ICopyRunningAggregateFunction craf = craff.createRunningAggregateFunction(abvs);
-            return new IRunningAggregateFunction() {
+            return new IRunningAggregateEvaluator() {
                 @Override
                 public void step(IFrameTupleReference tuple, IPointable result) throws AlgebricksException {
                     abvs.reset();
@@ -163,7 +163,7 @@ public class LogicalExpressionJobGenToExpressionRuntimeProviderAdapter implement
         }
     }
 
-    private static final class UnnestingFunctionFactoryAdapter implements IUnnestingFunctionFactory {
+    private static final class UnnestingFunctionFactoryAdapter implements IUnnestingEvaluatorFactory {
         private static final long serialVersionUID = 1L;
 
         private final ICopyUnnestingFunctionFactory cuff;
@@ -173,10 +173,10 @@ public class LogicalExpressionJobGenToExpressionRuntimeProviderAdapter implement
         }
 
         @Override
-        public IUnnestingFunction createUnnestingFunction() throws AlgebricksException {
+        public IUnnestingEvaluator createUnnestingEvaluator() throws AlgebricksException {
             final ArrayBackedValueStorage abvs = new ArrayBackedValueStorage();
             final ICopyUnnestingFunction cuf = cuff.createUnnestingFunction(abvs);
-            return new IUnnestingFunction() {
+            return new IUnnestingEvaluator() {
                 @Override
                 public boolean step(IPointable result) throws AlgebricksException {
                     abvs.reset();

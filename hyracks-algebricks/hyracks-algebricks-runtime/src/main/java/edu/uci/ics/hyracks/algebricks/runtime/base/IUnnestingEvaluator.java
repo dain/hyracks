@@ -18,8 +18,8 @@ import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
 import edu.uci.ics.hyracks.data.std.api.IPointable;
 import edu.uci.ics.hyracks.dataflow.common.data.accessors.IFrameTupleReference;
 
-public interface IRunningAggregateFunction {
-    public void init() throws AlgebricksException;
+public interface IUnnestingEvaluator {
+    public void init(IFrameTupleReference tuple) throws AlgebricksException;
 
-    public void step(IFrameTupleReference tuple, IPointable result) throws AlgebricksException;
+    public boolean step(IPointable result) throws AlgebricksException;
 }

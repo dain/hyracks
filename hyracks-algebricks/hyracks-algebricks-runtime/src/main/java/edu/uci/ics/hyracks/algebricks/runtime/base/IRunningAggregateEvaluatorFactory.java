@@ -18,6 +18,6 @@ import java.io.Serializable;
 
 import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
 
-public interface IAggregateFunctionFactory extends Serializable {
-    public IAggregateFunction createAggregateFunction() throws AlgebricksException;
+public interface IRunningAggregateEvaluatorFactory extends Serializable {
+    public IRunningAggregateEvaluator createRunningAggregateEvaluator() throws AlgebricksException;
 }
