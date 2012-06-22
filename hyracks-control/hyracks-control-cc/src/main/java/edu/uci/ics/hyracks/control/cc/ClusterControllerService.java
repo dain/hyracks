@@ -339,6 +339,15 @@ public class ClusterControllerService extends AbstractRemoteService {
                             new IPCResponder<Map<String, NodeControllerInfo>>(handle, mid)));
                     return;
                 }
+
+                case GET_CLUSTER_TOPOLOGY: {
+                    try {
+                        handle.send(mid, ccContext.getClusterTopology(), null);
+                    } catch (IPCException e) {
+                        e.printStackTrace();
+                    }
+                    return;
+                }
             }
             try {
                 handle.send(mid, null, new IllegalArgumentException("Unknown function " + fn.getFunctionId()));

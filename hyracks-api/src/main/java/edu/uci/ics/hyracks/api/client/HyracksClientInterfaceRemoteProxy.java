@@ -20,6 +20,7 @@ import java.util.Map;
 import edu.uci.ics.hyracks.api.job.JobFlag;
 import edu.uci.ics.hyracks.api.job.JobId;
 import edu.uci.ics.hyracks.api.job.JobStatus;
+import edu.uci.ics.hyracks.api.topology.ClusterTopology;
 import edu.uci.ics.hyracks.ipc.api.IIPCHandle;
 import edu.uci.ics.hyracks.ipc.api.RPCInterface;
 
@@ -92,5 +93,11 @@ public class HyracksClientInterfaceRemoteProxy implements IHyracksClientInterfac
     public Map<String, NodeControllerInfo> getNodeControllersInfo() throws Exception {
         HyracksClientInterfaceFunctions.GetNodeControllersInfoFunction gncif = new HyracksClientInterfaceFunctions.GetNodeControllersInfoFunction();
         return (Map<String, NodeControllerInfo>) rpci.call(ipcHandle, gncif);
+    }
+
+    @Override
+    public ClusterTopology getClusterTopology() throws Exception {
+        HyracksClientInterfaceFunctions.GetClusterTopologyFunction gctf = new HyracksClientInterfaceFunctions.GetClusterTopologyFunction();
+        return (ClusterTopology) rpci.call(ipcHandle, gctf);
     }
 }

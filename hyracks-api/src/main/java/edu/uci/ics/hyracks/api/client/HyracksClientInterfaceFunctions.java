@@ -23,6 +23,7 @@ import edu.uci.ics.hyracks.api.job.JobId;
 public class HyracksClientInterfaceFunctions {
     public enum FunctionId {
         GET_CLUSTER_CONTROLLER_INFO,
+        GET_CLUSTER_TOPOLOGY,
         CREATE_APPLICATION,
         START_APPLICATION,
         DESTROY_APPLICATION,
@@ -199,6 +200,15 @@ public class HyracksClientInterfaceFunctions {
         @Override
         public FunctionId getFunctionId() {
             return FunctionId.GET_NODE_CONTROLLERS_INFO;
+        }
+    }
+
+    public static class GetClusterTopologyFunction extends Function {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public FunctionId getFunctionId() {
+            return FunctionId.GET_CLUSTER_TOPOLOGY;
         }
     }
 }
