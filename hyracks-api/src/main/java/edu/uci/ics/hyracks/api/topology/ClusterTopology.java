@@ -12,18 +12,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package edu.uci.ics.hyracks.api.context;
+package edu.uci.ics.hyracks.api.topology;
 
-import java.util.Map;
-import java.util.Set;
+import java.io.Serializable;
+import java.util.List;
 
-import edu.uci.ics.hyracks.api.client.ClusterControllerInfo;
-import edu.uci.ics.hyracks.api.topology.ClusterTopology;
+public class ClusterTopology implements Serializable {
+    private static final long serialVersionUID = 1L;
 
-public interface ICCContext {
-    public ClusterControllerInfo getClusterControllerInfo();
+    private final NetworkSwitch clusterSwitch;
 
-    public void getIPAddressNodeMap(Map<String, Set<String>> map) throws Exception;
+    public ClusterTopology(NetworkSwitch clusterSwitch) {
+        this.clusterSwitch = clusterSwitch;
+    }
 
-    public ClusterTopology getClusterTopology();
+    public NetworkSwitch getClusterSwitch() {
+        return clusterSwitch;
+    }
+
+    public boolean lookupNetworkTerminal(String terminalName, List<Integer> path) {
+        return clusterSwitch.lookupNetworkTerminal(terminalName, path);
+    }
 }
