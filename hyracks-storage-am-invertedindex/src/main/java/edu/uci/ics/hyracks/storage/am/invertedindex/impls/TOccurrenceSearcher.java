@@ -49,6 +49,8 @@ import edu.uci.ics.hyracks.storage.am.invertedindex.api.IInvertedListCursor;
 import edu.uci.ics.hyracks.storage.am.invertedindex.tokenizers.IBinaryTokenizer;
 import edu.uci.ics.hyracks.storage.am.invertedindex.tokenizers.IToken;
 
+// TODO: The search procedure is rather confusing regarding cursor positions, hasNext() calls etc.
+// Needs an overhaul some time.
 public class TOccurrenceSearcher implements IInvertedIndexSearcher {
 
     protected final IHyracksCommonContext ctx;
@@ -448,7 +450,9 @@ public class TOccurrenceSearcher implements IInvertedIndexSearcher {
             ITupleReference invListTuple = invListCursor.getTuple();
             newBufIdx = appendTupleToNewResults(invListTuple, 1, newBufIdx);
             invListTidx++;
-            invListCursor.next();
+            if (invListCursor.hasNext()) {
+                invListCursor.next();
+            }
         }
 
         // append remaining elements from previous result set
