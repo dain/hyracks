@@ -23,18 +23,18 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.base.ILogicalExpression;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.ILogicalOperator;
 import edu.uci.ics.hyracks.algebricks.core.algebra.base.LogicalVariable;
 import edu.uci.ics.hyracks.algebricks.core.algebra.expressions.IExpressionEvalSizeComputer;
+import edu.uci.ics.hyracks.algebricks.core.algebra.expressions.IExpressionRuntimeProvider;
 import edu.uci.ics.hyracks.algebricks.core.algebra.expressions.IExpressionTypeComputer;
-import edu.uci.ics.hyracks.algebricks.core.algebra.expressions.ILogicalExpressionJobGen;
 import edu.uci.ics.hyracks.algebricks.core.algebra.expressions.INullableTypeComputer;
 import edu.uci.ics.hyracks.algebricks.core.algebra.expressions.IPartialAggregationTypeComputer;
 import edu.uci.ics.hyracks.algebricks.core.algebra.expressions.IVariableTypeEnvironment;
 import edu.uci.ics.hyracks.algebricks.core.algebra.metadata.IMetadataProvider;
 import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.IOperatorSchema;
 import edu.uci.ics.hyracks.algebricks.core.algebra.typing.ITypingContext;
-import edu.uci.ics.hyracks.algebricks.data.IBinaryBooleanInspector;
+import edu.uci.ics.hyracks.algebricks.data.IBinaryBooleanInspectorFactory;
 import edu.uci.ics.hyracks.algebricks.data.IBinaryComparatorFactoryProvider;
 import edu.uci.ics.hyracks.algebricks.data.IBinaryHashFunctionFactoryProvider;
-import edu.uci.ics.hyracks.algebricks.data.IBinaryIntegerInspector;
+import edu.uci.ics.hyracks.algebricks.data.IBinaryIntegerInspectorFactory;
 import edu.uci.ics.hyracks.algebricks.data.INormalizedKeyComputerFactoryProvider;
 import edu.uci.ics.hyracks.algebricks.data.IPrinterFactoryProvider;
 import edu.uci.ics.hyracks.algebricks.data.ISerializerDeserializerProvider;
@@ -53,9 +53,9 @@ public class JobGenContext {
     private final INullWriterFactory nullWriterFactory;
     private final INormalizedKeyComputerFactoryProvider normalizedKeyComputerFactoryProvider;
     private final Object appContext;
-    private final IBinaryBooleanInspector booleanInspector;
-    private final IBinaryIntegerInspector integerInspector;
-    private final ILogicalExpressionJobGen exprJobGen;
+    private final IBinaryBooleanInspectorFactory booleanInspectorFactory;
+    private final IBinaryIntegerInspectorFactory integerInspectorFactory;
+    private final IExpressionRuntimeProvider expressionRuntimeProvider;
     private final IExpressionTypeComputer expressionTypeComputer;
     private final IExpressionEvalSizeComputer expressionEvalSizeComputer;
     private final IPartialAggregationTypeComputer partialAggregationTypeComputer;
@@ -68,10 +68,11 @@ public class JobGenContext {
             ISerializerDeserializerProvider serializerDeserializerProvider,
             IBinaryHashFunctionFactoryProvider hashFunctionFactoryProvider,
             IBinaryComparatorFactoryProvider comparatorFactoryProvider, ITypeTraitProvider typeTraitProvider,
-            IBinaryBooleanInspector booleanInspector, IBinaryIntegerInspector integerInspector,
-            IPrinterFactoryProvider printerFactoryProvider, INullWriterFactory nullWriterFactory,
+            IBinaryBooleanInspectorFactory booleanInspectorFactory,
+            IBinaryIntegerInspectorFactory integerInspectorFactory, IPrinterFactoryProvider printerFactoryProvider,
+            INullWriterFactory nullWriterFactory,
             INormalizedKeyComputerFactoryProvider normalizedKeyComputerFactoryProvider,
-            ILogicalExpressionJobGen exprJobGen, IExpressionTypeComputer expressionTypeComputer,
+            IExpressionRuntimeProvider expressionRuntimeProvider, IExpressionTypeComputer expressionTypeComputer,
             INullableTypeComputer nullableTypeComputer, ITypingContext typingContext,
             IExpressionEvalSizeComputer expressionEvalSizeComputer,
             IPartialAggregationTypeComputer partialAggregationTypeComputer, int frameSize,
@@ -83,13 +84,13 @@ public class JobGenContext {
         this.hashFunctionFactoryProvider = hashFunctionFactoryProvider;
         this.comparatorFactoryProvider = comparatorFactoryProvider;
         this.typeTraitProvider = typeTraitProvider;
-        this.booleanInspector = booleanInspector;
-        this.integerInspector = integerInspector;
+        this.booleanInspectorFactory = booleanInspectorFactory;
+        this.integerInspectorFactory = integerInspectorFactory;
         this.printerFactoryProvider = printerFactoryProvider;
         this.clusterLocations = clusterLocations;
         this.normalizedKeyComputerFactoryProvider = normalizedKeyComputerFactoryProvider;
         this.nullWriterFactory = nullWriterFactory;
-        this.exprJobGen = exprJobGen;
+        this.expressionRuntimeProvider = expressionRuntimeProvider;
         this.expressionTypeComputer = expressionTypeComputer;
         this.typingContext = typingContext;
         this.expressionEvalSizeComputer = expressionEvalSizeComputer;
@@ -130,20 +131,20 @@ public class JobGenContext {
         return typeTraitProvider;
     }
 
-    public IBinaryBooleanInspector getBinaryBooleanInspector() {
-        return booleanInspector;
+    public IBinaryBooleanInspectorFactory getBinaryBooleanInspectorFactory() {
+        return booleanInspectorFactory;
     }
 
-    public IBinaryIntegerInspector getBinaryIntegerInspector() {
-        return integerInspector;
+    public IBinaryIntegerInspectorFactory getBinaryIntegerInspectorFactory() {
+        return integerInspectorFactory;
     }
 
     public IPrinterFactoryProvider getPrinterFactoryProvider() {
         return printerFactoryProvider;
     }
 
-    public ILogicalExpressionJobGen getExpressionJobGen() {
-        return exprJobGen;
+    public IExpressionRuntimeProvider getExpressionRuntimeProvider() {
+        return expressionRuntimeProvider;
     }
 
     public IOperatorSchema getSchema(ILogicalOperator op) {

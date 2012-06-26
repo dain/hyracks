@@ -18,32 +18,34 @@ import java.nio.ByteBuffer;
 
 import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
 import edu.uci.ics.hyracks.algebricks.data.IBinaryBooleanInspector;
-import edu.uci.ics.hyracks.algebricks.runtime.base.ICopyEvaluator;
-import edu.uci.ics.hyracks.algebricks.runtime.base.ICopyEvaluatorFactory;
-import edu.uci.ics.hyracks.algebricks.runtime.context.RuntimeContext;
+import edu.uci.ics.hyracks.algebricks.data.IBinaryBooleanInspectorFactory;
+import edu.uci.ics.hyracks.algebricks.runtime.base.IScalarEvaluator;
+import edu.uci.ics.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.operators.base.AbstractOneInputOneOutputOneFramePushRuntime;
 import edu.uci.ics.hyracks.algebricks.runtime.operators.base.AbstractOneInputOneOutputRuntimeFactory;
+import edu.uci.ics.hyracks.api.context.IHyracksTaskContext;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
-import edu.uci.ics.hyracks.dataflow.common.data.accessors.ArrayBackedValueStorage;
+import edu.uci.ics.hyracks.data.std.api.IPointable;
+import edu.uci.ics.hyracks.data.std.primitive.VoidPointable;
 
 public class StreamSelectRuntimeFactory extends AbstractOneInputOneOutputRuntimeFactory {
 
     private static final long serialVersionUID = 1L;
 
-    private ICopyEvaluatorFactory cond;
+    private IScalarEvaluatorFactory cond;
 
-    private IBinaryBooleanInspector binaryBooleanInspector;
+    private IBinaryBooleanInspectorFactory binaryBooleanInspectorFactory;
 
     /**
      * @param cond
      * @param projectionList
      *            if projectionList is null, then no projection is performed
      */
-    public StreamSelectRuntimeFactory(ICopyEvaluatorFactory cond, int[] projectionList,
-            IBinaryBooleanInspector binaryBooleanInspector) {
+    public StreamSelectRuntimeFactory(IScalarEvaluatorFactory cond, int[] projectionList,
+            IBinaryBooleanInspectorFactory binaryBooleanInspectorFactory) {
         super(projectionList);
         this.cond = cond;
-        this.binaryBooleanInspector = binaryBooleanInspector;
+        this.binaryBooleanInspectorFactory = binaryBooleanInspectorFactory;
     }
 
     @Override
@@ -52,19 +54,18 @@ public class StreamSelectRuntimeFactory extends AbstractOneInputOneOutputRuntime
     }
 
     @Override
-    public AbstractOneInputOneOutputOneFramePushRuntime createOneOutputPushRuntime(final RuntimeContext context) {
+    public AbstractOneInputOneOutputOneFramePushRuntime createOneOutputPushRuntime(final IHyracksTaskContext ctx) {
+        final IBinaryBooleanInspector bbi = binaryBooleanInspectorFactory.createBinaryBooleanInspector(ctx);
         return new AbstractOneInputOneOutputOneFramePushRuntime() {
-
-            private ICopyEvaluator eval;
-            private ArrayBackedValueStorage evalOutput;
+            private IPointable p = VoidPointable.FACTORY.createPointable();
+            private IScalarEvaluator eval;
 
             @Override
             public void open() throws HyracksDataException {
                 if (eval == null) {
-                    initAccessAppendRef(context);
-                    evalOutput = new ArrayBackedValueStorage();
+                    initAccessAppendRef(ctx);
                     try {
-                        eval = cond.createEvaluator(evalOutput);
+                        eval = cond.createScalarEvaluator(ctx);
                     } catch (AlgebricksException ae) {
                         throw new HyracksDataException(ae);
                     }
@@ -78,13 +79,12 @@ public class StreamSelectRuntimeFactory extends AbstractOneInputOneOutputRuntime
                 int nTuple = tAccess.getTupleCount();
                 for (int t = 0; t < nTuple; t++) {
                     tRef.reset(tAccess, t);
-                    evalOutput.reset();
                     try {
-                        eval.evaluate(tRef);
+                        eval.evaluate(tRef, p);
                     } catch (AlgebricksException ae) {
                         throw new HyracksDataException(ae);
                     }
-                    if (binaryBooleanInspector.getBooleanValue(evalOutput.getByteArray(), 0, evalOutput.getLength())) {
+                    if (bbi.getBooleanValue(p.getByteArray(), p.getStartOffset(), p.getLength())) {
                         if (projectionList != null) {
                             appendProjectionToFrame(t, projectionList);
                         } else {

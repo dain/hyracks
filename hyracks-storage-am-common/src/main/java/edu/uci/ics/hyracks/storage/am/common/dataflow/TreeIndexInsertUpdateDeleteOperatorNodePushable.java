@@ -40,7 +40,7 @@ public class TreeIndexInsertUpdateDeleteOperatorNodePushable extends AbstractUna
     private ByteBuffer writeBuffer;
     private IIndexAccessor indexAccessor;
     private ITupleFilter tupleFilter;
-    
+
     public TreeIndexInsertUpdateDeleteOperatorNodePushable(AbstractTreeIndexOperatorDescriptor opDesc,
             IHyracksTaskContext ctx, int partition, int[] fieldPermutation,
             IRecordDescriptorProvider recordDescProvider, IndexOp op) {
@@ -65,8 +65,8 @@ public class TreeIndexInsertUpdateDeleteOperatorNodePushable extends AbstractUna
             indexAccessor = treeIndex.createAccessor();
             ITupleFilterFactory tupleFilterFactory = opDesc.getTupleFilterFactory();
             if (tupleFilterFactory != null) {
-            	tupleFilter = tupleFilterFactory.createTupleFilter();
-            	frameTuple = new FrameTupleReference();
+                tupleFilter = tupleFilterFactory.createTupleFilter(treeIndexHelper.ctx);
+                frameTuple = new FrameTupleReference();
             }
         } catch (Exception e) {
             // cleanup in case of failure
@@ -79,15 +79,15 @@ public class TreeIndexInsertUpdateDeleteOperatorNodePushable extends AbstractUna
     public void nextFrame(ByteBuffer buffer) throws HyracksDataException {
         accessor.reset(buffer);
         int tupleCount = accessor.getTupleCount();
-        for (int i = 0; i < tupleCount; i++) {            
+        for (int i = 0; i < tupleCount; i++) {
             try {
-            	if (tupleFilter != null) {
+                if (tupleFilter != null) {
                     frameTuple.reset(accessor, i);
                     if (!tupleFilter.accept(frameTuple)) {
                         continue;
                     }
                 }
-            	tuple.reset(accessor, i);
+                tuple.reset(accessor, i);
                 switch (op) {
                     case INSERT: {
                         indexAccessor.insert(tuple);

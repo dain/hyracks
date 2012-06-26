@@ -14,8 +14,6 @@
  */
 package edu.uci.ics.hyracks.algebricks.data;
 
-import java.io.Serializable;
-
-public interface IBinaryIntegerInspector extends Serializable {
+public interface IBinaryIntegerInspector {
     public int getIntegerValue(byte[] bytes, int offset, int length);
 }
