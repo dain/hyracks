@@ -38,6 +38,7 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.properties.StructuralProperti
 import edu.uci.ics.hyracks.algebricks.core.jobgen.impl.JobGenContext;
 import edu.uci.ics.hyracks.algebricks.core.jobgen.impl.JobGenHelper;
 import edu.uci.ics.hyracks.algebricks.data.IBinaryBooleanInspector;
+import edu.uci.ics.hyracks.algebricks.data.IBinaryBooleanInspectorFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import edu.uci.ics.hyracks.api.comm.IFrameTupleAccessor;
@@ -128,7 +129,7 @@ public class NLJoinPOperator extends AbstractJoinPOperator {
         IScalarEvaluatorFactory cond = expressionRuntimeProvider.createEvaluatorFactory(join.getCondition().getValue(),
                 context.getTypeEnvironment(op), conditionInputSchemas, context);
         ITuplePairComparatorFactory comparatorFactory = new TuplePairEvaluatorFactory(cond,
-                context.getBinaryBooleanInspector());
+                context.getBinaryBooleanInspectorFactory());
         IOperatorDescriptorRegistry spec = builder.getJobSpec();
         IOperatorDescriptor opDesc = null;
 
@@ -154,16 +155,17 @@ public class NLJoinPOperator extends AbstractJoinPOperator {
 
         private static final long serialVersionUID = 1L;
         private final IScalarEvaluatorFactory cond;
-        private final IBinaryBooleanInspector binaryBooleanInspector;
+        private final IBinaryBooleanInspectorFactory binaryBooleanInspectorFactory;
 
-        public TuplePairEvaluatorFactory(IScalarEvaluatorFactory cond, IBinaryBooleanInspector binaryBooleanInspector) {
+        public TuplePairEvaluatorFactory(IScalarEvaluatorFactory cond,
+                IBinaryBooleanInspectorFactory binaryBooleanInspectorFactory) {
             this.cond = cond;
-            this.binaryBooleanInspector = binaryBooleanInspector;
+            this.binaryBooleanInspectorFactory = binaryBooleanInspectorFactory;
         }
 
         @Override
         public synchronized ITuplePairComparator createTuplePairComparator(IHyracksTaskContext ctx) {
-            return new TuplePairEvaluator(ctx, cond, binaryBooleanInspector);
+            return new TuplePairEvaluator(ctx, cond, binaryBooleanInspectorFactory.createBinaryBooleanInspector(ctx));
         }
     }
 

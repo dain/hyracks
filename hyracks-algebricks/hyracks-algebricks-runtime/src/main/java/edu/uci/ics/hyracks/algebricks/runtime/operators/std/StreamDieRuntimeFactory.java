@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 
 import edu.uci.ics.hyracks.algebricks.common.exceptions.AlgebricksException;
 import edu.uci.ics.hyracks.algebricks.data.IBinaryIntegerInspector;
+import edu.uci.ics.hyracks.algebricks.data.IBinaryIntegerInspectorFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IScalarEvaluator;
 import edu.uci.ics.hyracks.algebricks.runtime.base.IScalarEvaluatorFactory;
 import edu.uci.ics.hyracks.algebricks.runtime.context.RuntimeContext;
@@ -18,13 +19,13 @@ public class StreamDieRuntimeFactory extends AbstractOneInputOneOutputRuntimeFac
     private static final long serialVersionUID = 1L;
 
     private IScalarEvaluatorFactory aftterObjectsEvalFactory;
-    private IBinaryIntegerInspector binaryIntegerInspector;
+    private IBinaryIntegerInspectorFactory binaryIntegerInspectorFactory;
 
     public StreamDieRuntimeFactory(IScalarEvaluatorFactory maxObjectsEvalFactory, int[] projectionList,
-            IBinaryIntegerInspector binaryIntegerInspector) {
+            IBinaryIntegerInspectorFactory binaryIntegerInspectorFactory) {
         super(projectionList);
         this.aftterObjectsEvalFactory = maxObjectsEvalFactory;
-        this.binaryIntegerInspector = binaryIntegerInspector;
+        this.binaryIntegerInspectorFactory = binaryIntegerInspectorFactory;
     }
 
     @Override
@@ -35,6 +36,8 @@ public class StreamDieRuntimeFactory extends AbstractOneInputOneOutputRuntimeFac
 
     @Override
     public AbstractOneInputOneOutputOneFramePushRuntime createOneOutputPushRuntime(final RuntimeContext context) {
+        final IBinaryIntegerInspector bii = binaryIntegerInspectorFactory.createBinaryIntegerInspector(context
+                .getHyracksContext());
         return new AbstractOneInputOneOutputOneFramePushRuntime() {
             private IPointable p = VoidPointable.FACTORY.createPointable();
             private IScalarEvaluator evalAfterObjects;
@@ -86,7 +89,7 @@ public class StreamDieRuntimeFactory extends AbstractOneInputOneOutputRuntimeFac
                 } catch (AlgebricksException ae) {
                     throw new HyracksDataException(ae);
                 }
-                int lim = binaryIntegerInspector.getIntegerValue(p.getByteArray(), p.getStartOffset(), p.getLength());
+                int lim = bii.getIntegerValue(p.getByteArray(), p.getStartOffset(), p.getLength());
                 return lim;
             }
 
