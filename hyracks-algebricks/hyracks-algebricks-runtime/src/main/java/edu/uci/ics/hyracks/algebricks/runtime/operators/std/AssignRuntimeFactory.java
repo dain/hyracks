@@ -94,7 +94,7 @@ public class AssignRuntimeFactory extends AbstractOneInputOneOutputRuntimeFactor
                     int n = evalFactories.length;
                     for (int i = 0; i < n; i++) {
                         try {
-                            eval[i] = evalFactories[i].createScalarEvaluator();
+                            eval[i] = evalFactories[i].createScalarEvaluator(context.getHyracksContext());
                         } catch (AlgebricksException ae) {
                             throw new HyracksDataException(ae);
                         }

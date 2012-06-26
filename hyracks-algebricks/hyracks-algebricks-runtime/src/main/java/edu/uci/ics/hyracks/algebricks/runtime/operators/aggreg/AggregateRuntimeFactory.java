@@ -73,7 +73,7 @@ public class AggregateRuntimeFactory extends AbstractOneInputOneOutputRuntimeFac
                         first = false;
                         initAccessAppendRef(context);
                         for (int i = 0; i < aggregFactories.length; i++) {
-                            aggregs[i] = aggregFactories[i].createAggregateEvaluator();
+                            aggregs[i] = aggregFactories[i].createAggregateEvaluator(context.getHyracksContext());
                         }
                     }
                     for (int i = 0; i < aggregFactories.length; i++) {

@@ -72,7 +72,7 @@ public class UnnestRuntimeFactory extends AbstractOneInputOneOutputRuntimeFactor
             public void open() throws HyracksDataException {
                 initAccessAppendRef(context);
                 try {
-                    agg = unnestingFactory.createUnnestingEvaluator();
+                    agg = unnestingFactory.createUnnestingEvaluator(context.getHyracksContext());
                 } catch (AlgebricksException ae) {
                     throw new HyracksDataException(ae);
                 }

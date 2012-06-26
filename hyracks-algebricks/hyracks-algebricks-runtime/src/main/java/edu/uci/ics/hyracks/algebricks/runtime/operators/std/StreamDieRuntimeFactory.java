@@ -45,7 +45,7 @@ public class StreamDieRuntimeFactory extends AbstractOneInputOneOutputRuntimeFac
                 if (evalAfterObjects == null) {
                     initAccessAppendRef(context);
                     try {
-                        evalAfterObjects = aftterObjectsEvalFactory.createScalarEvaluator();
+                        evalAfterObjects = aftterObjectsEvalFactory.createScalarEvaluator(context.getHyracksContext());
                     } catch (AlgebricksException ae) {
                         throw new HyracksDataException(ae);
                     }

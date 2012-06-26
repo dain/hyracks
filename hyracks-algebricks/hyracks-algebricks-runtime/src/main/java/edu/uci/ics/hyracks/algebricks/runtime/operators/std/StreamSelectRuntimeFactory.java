@@ -63,7 +63,7 @@ public class StreamSelectRuntimeFactory extends AbstractOneInputOneOutputRuntime
                 if (eval == null) {
                     initAccessAppendRef(context);
                     try {
-                        eval = cond.createScalarEvaluator();
+                        eval = cond.createScalarEvaluator(context.getHyracksContext());
                     } catch (AlgebricksException ae) {
                         throw new HyracksDataException(ae);
                     }

@@ -57,9 +57,9 @@ public class StreamLimitRuntimeFactory extends AbstractOneInputOneOutputRuntimeF
                 if (evalMaxObjects == null) {
                     initAccessAppendRef(context);
                     try {
-                        evalMaxObjects = maxObjectsEvalFactory.createScalarEvaluator();
+                        evalMaxObjects = maxObjectsEvalFactory.createScalarEvaluator(context.getHyracksContext());
                         if (offsetEvalFactory != null) {
-                            evalOffset = offsetEvalFactory.createScalarEvaluator();
+                            evalOffset = offsetEvalFactory.createScalarEvaluator(context.getHyracksContext());
                         }
                     } catch (AlgebricksException ae) {
                         throw new HyracksDataException(ae);
