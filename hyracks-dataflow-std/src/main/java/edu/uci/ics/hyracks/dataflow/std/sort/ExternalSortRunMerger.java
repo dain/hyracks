@@ -127,7 +127,7 @@ public class ExternalSortRunMerger {
                             runCursors[i] = runs.get(generationSeparator + i);
                         }
                         merge(mergeResultWriter, runCursors);
-                        runs.subList(generationSeparator, mergeWidth).clear();
+                        runs.subList(generationSeparator, mergeWidth + generationSeparator).clear();
                         runs.add(generationSeparator++, ((RunFileWriter) mergeResultWriter).createReader());
                     }
                 }
