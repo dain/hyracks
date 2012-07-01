@@ -119,10 +119,9 @@ public class ExternalSortRunMerger {
                         if (maxMergeWidth - runs.size() - 1 > 0) {
                             mergeWidth = Math.min(mergeWidth, maxMergeWidth - runs.size() - 1);
                         }
-                        FileReference newRun = null;
-                        IFrameWriter mergeResultWriter = this.writer;
-                        newRun = ctx.createManagedWorkspaceFile(ExternalSortRunMerger.class.getSimpleName());
-                        mergeResultWriter = new RunFileWriter(newRun, ctx.getIOManager());
+                        FileReference newRun = ctx.createManagedWorkspaceFile(ExternalSortRunMerger.class
+                                .getSimpleName());
+                        IFrameWriter mergeResultWriter = new RunFileWriter(newRun, ctx.getIOManager());
                         mergeResultWriter.open();
                         IFrameReader[] runCursors = new RunFileReader[mergeWidth];
                         for (int i = 0; i < mergeWidth; i++) {
