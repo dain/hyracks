@@ -22,7 +22,6 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.AbstractLog
 
 /**
  * @author rico
- * 
  */
 public abstract class AbstractExtensibleLogicalOperator implements IOperatorExtension {
 
@@ -47,8 +46,7 @@ public abstract class AbstractExtensibleLogicalOperator implements IOperatorExte
 
     @Override
     public IPhysicalOperator getPhysicalOperator() {
-        // TODO Auto-generated method stub
-        return null;
+        return physicalOperator;
     }
 
     @Override
