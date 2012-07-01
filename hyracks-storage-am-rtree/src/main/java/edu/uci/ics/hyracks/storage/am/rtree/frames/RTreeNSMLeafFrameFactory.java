@@ -15,6 +15,8 @@
 
 package edu.uci.ics.hyracks.storage.am.rtree.frames;
 
+import edu.uci.ics.hyracks.storage.am.common.api.IPrimitiveValueProvider;
+import edu.uci.ics.hyracks.storage.am.common.api.IPrimitiveValueProviderFactory;
 import edu.uci.ics.hyracks.storage.am.common.api.ITreeIndexFrameFactory;
 import edu.uci.ics.hyracks.storage.am.common.api.ITreeIndexTupleWriterFactory;
 import edu.uci.ics.hyracks.storage.am.rtree.api.IRTreeLeafFrame;
@@ -22,16 +24,28 @@ import edu.uci.ics.hyracks.storage.am.rtree.api.IRTreeLeafFrame;
 public class RTreeNSMLeafFrameFactory implements ITreeIndexFrameFactory {
 
     private static final long serialVersionUID = 1L;
-    private ITreeIndexTupleWriterFactory tupleWriterFactory;
-    private int keyFieldCount;
+    private final ITreeIndexTupleWriterFactory tupleWriterFactory;
+    private final IPrimitiveValueProviderFactory[] keyValueProviderFactories;
 
-    public RTreeNSMLeafFrameFactory(ITreeIndexTupleWriterFactory tupleWriterFactory, int keyFieldCount) {
+    public RTreeNSMLeafFrameFactory(ITreeIndexTupleWriterFactory tupleWriterFactory, IPrimitiveValueProviderFactory[] keyValueProviderFactories) {
         this.tupleWriterFactory = tupleWriterFactory;
-        this.keyFieldCount = keyFieldCount;
+        if (keyValueProviderFactories.length % 2 != 0) {
+            throw new IllegalArgumentException("The key has different number of dimensions.");
+        }
+        this.keyValueProviderFactories = keyValueProviderFactories;
     }
 
     @Override
     public IRTreeLeafFrame createFrame() {
-        return new RTreeNSMLeafFrame(tupleWriterFactory.createTupleWriter(), keyFieldCount);
+        IPrimitiveValueProvider[] keyValueProviders = new IPrimitiveValueProvider[keyValueProviderFactories.length];
+        for (int i = 0; i < keyValueProviders.length; i++) {
+            keyValueProviders[i] = keyValueProviderFactories[i].createPrimitiveValueProvider();
+        }
+        return new RTreeNSMLeafFrame(tupleWriterFactory.createTupleWriter(), keyValueProviders);
     }
+
+	@Override
+	public ITreeIndexTupleWriterFactory getTupleWriterFactory() {
+		return tupleWriterFactory;
+	}
 }

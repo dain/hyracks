@@ -20,8 +20,7 @@ import edu.uci.ics.hyracks.api.dataflow.IOperatorNodePushable;
 import edu.uci.ics.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
-import edu.uci.ics.hyracks.api.job.IOperatorEnvironment;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
+import edu.uci.ics.hyracks.api.job.IOperatorDescriptorRegistry;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractSingleActivityOperatorDescriptor;
 import edu.uci.ics.hyracks.dataflow.std.base.IOpenableDataWriterOperator;
 import edu.uci.ics.hyracks.dataflow.std.util.DeserializedOperatorNodePushable;
@@ -33,8 +32,12 @@ public class DeserializedMapperOperatorDescriptor extends AbstractSingleActivity
 
         @Override
         public void close() throws HyracksDataException {
-            // writer.writeData(null);
             writer.close();
+        }
+
+        @Override
+        public void fail() throws HyracksDataException {
+            writer.fail();
         }
 
         @Override
@@ -61,7 +64,7 @@ public class DeserializedMapperOperatorDescriptor extends AbstractSingleActivity
 
     private final IDeserializedMapperFactory mapperFactory;
 
-    public DeserializedMapperOperatorDescriptor(JobSpecification spec, IDeserializedMapperFactory mapperFactory,
+    public DeserializedMapperOperatorDescriptor(IOperatorDescriptorRegistry spec, IDeserializedMapperFactory mapperFactory,
             RecordDescriptor recordDescriptor) {
         super(spec, 1, 1);
         this.mapperFactory = mapperFactory;
@@ -69,7 +72,7 @@ public class DeserializedMapperOperatorDescriptor extends AbstractSingleActivity
     }
 
     @Override
-    public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx, IOperatorEnvironment env,
+    public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
             IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
         return new DeserializedOperatorNodePushable(ctx, new MapperOperator(),
                 recordDescProvider.getInputRecordDescriptor(getOperatorId(), 0));

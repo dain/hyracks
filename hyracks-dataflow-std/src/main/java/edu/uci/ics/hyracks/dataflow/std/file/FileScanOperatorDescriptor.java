@@ -24,8 +24,7 @@ import edu.uci.ics.hyracks.api.dataflow.IOperatorNodePushable;
 import edu.uci.ics.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
-import edu.uci.ics.hyracks.api.job.IOperatorEnvironment;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
+import edu.uci.ics.hyracks.api.job.IOperatorDescriptorRegistry;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractSingleActivityOperatorDescriptor;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryOutputSourceOperatorNodePushable;
 
@@ -36,7 +35,7 @@ public class FileScanOperatorDescriptor extends AbstractSingleActivityOperatorDe
 
     private final ITupleParserFactory tupleParserFactory;
 
-    public FileScanOperatorDescriptor(JobSpecification spec, IFileSplitProvider fileSplitProvider,
+    public FileScanOperatorDescriptor(IOperatorDescriptorRegistry spec, IFileSplitProvider fileSplitProvider,
             ITupleParserFactory tupleParserFactory, RecordDescriptor rDesc) {
         super(spec, 0, 1);
         this.fileSplitProvider = fileSplitProvider;
@@ -45,7 +44,7 @@ public class FileScanOperatorDescriptor extends AbstractSingleActivityOperatorDe
     }
 
     @Override
-    public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx, IOperatorEnvironment env,
+    public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
             IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
         final FileSplit split = fileSplitProvider.getFileSplits()[partition];
         final ITupleParser tp = tupleParserFactory.createTupleParser(ctx);
@@ -59,9 +58,13 @@ public class FileScanOperatorDescriptor extends AbstractSingleActivityOperatorDe
                     try {
                         in = new FileInputStream(f);
                     } catch (FileNotFoundException e) {
+                        writer.fail();
                         throw new HyracksDataException(e);
                     }
                     tp.parse(in, writer);
+                } catch (Exception e) {
+                    writer.fail();
+                    throw new HyracksDataException(e);
                 } finally {
                     writer.close();
                 }

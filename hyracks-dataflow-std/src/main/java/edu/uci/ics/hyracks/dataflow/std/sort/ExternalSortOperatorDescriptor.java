@@ -14,6 +14,9 @@
  */
 package edu.uci.ics.hyracks.dataflow.std.sort;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
@@ -22,35 +25,38 @@ import edu.uci.ics.hyracks.api.context.IHyracksTaskContext;
 import edu.uci.ics.hyracks.api.dataflow.ActivityId;
 import edu.uci.ics.hyracks.api.dataflow.IActivityGraphBuilder;
 import edu.uci.ics.hyracks.api.dataflow.IOperatorNodePushable;
+import edu.uci.ics.hyracks.api.dataflow.TaskId;
 import edu.uci.ics.hyracks.api.dataflow.value.IBinaryComparator;
 import edu.uci.ics.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import edu.uci.ics.hyracks.api.dataflow.value.INormalizedKeyComputerFactory;
 import edu.uci.ics.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
-import edu.uci.ics.hyracks.api.job.IOperatorEnvironment;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
+import edu.uci.ics.hyracks.api.job.IOperatorDescriptorRegistry;
+import edu.uci.ics.hyracks.api.job.JobId;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractActivityNode;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
+import edu.uci.ics.hyracks.dataflow.std.base.AbstractStateObject;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputSinkOperatorNodePushable;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryOutputSourceOperatorNodePushable;
 
 public class ExternalSortOperatorDescriptor extends AbstractOperatorDescriptor {
-    private static final String FRAMESORTER = "framesorter";
-    private static final String RUNS = "runs";
-
     private static final long serialVersionUID = 1L;
+
+    private static final int SORT_ACTIVITY_ID = 0;
+    private static final int MERGE_ACTIVITY_ID = 1;
+
     private final int[] sortFields;
     private final INormalizedKeyComputerFactory firstKeyNormalizerFactory;
     private final IBinaryComparatorFactory[] comparatorFactories;
     private final int framesLimit;
 
-    public ExternalSortOperatorDescriptor(JobSpecification spec, int framesLimit, int[] sortFields,
+    public ExternalSortOperatorDescriptor(IOperatorDescriptorRegistry spec, int framesLimit, int[] sortFields,
             IBinaryComparatorFactory[] comparatorFactories, RecordDescriptor recordDescriptor) {
         this(spec, framesLimit, sortFields, null, comparatorFactories, recordDescriptor);
     }
 
-    public ExternalSortOperatorDescriptor(JobSpecification spec, int framesLimit, int[] sortFields,
+    public ExternalSortOperatorDescriptor(IOperatorDescriptorRegistry spec, int framesLimit, int[] sortFields,
             INormalizedKeyComputerFactory firstKeyNormalizerFactory, IBinaryComparatorFactory[] comparatorFactories,
             RecordDescriptor recordDescriptor) {
         super(spec, 1, 1);
@@ -66,8 +72,8 @@ public class ExternalSortOperatorDescriptor extends AbstractOperatorDescriptor {
 
     @Override
     public void contributeActivities(IActivityGraphBuilder builder) {
-        SortActivity sa = new SortActivity(new ActivityId(odId, 0));
-        MergeActivity ma = new MergeActivity(new ActivityId(odId, 1));
+        SortActivity sa = new SortActivity(new ActivityId(odId, SORT_ACTIVITY_ID));
+        MergeActivity ma = new MergeActivity(new ActivityId(odId, MERGE_ACTIVITY_ID));
 
         builder.addActivity(sa);
         builder.addSourceEdge(0, sa, 0);
@@ -78,6 +84,28 @@ public class ExternalSortOperatorDescriptor extends AbstractOperatorDescriptor {
         builder.addBlockingEdge(sa, ma);
     }
 
+    public static class SortTaskState extends AbstractStateObject {
+        private List<IFrameReader> runs;
+        private FrameSorter frameSorter;
+
+        public SortTaskState() {
+        }
+
+        private SortTaskState(JobId jobId, TaskId taskId) {
+            super(jobId, taskId);
+        }
+
+        @Override
+        public void toBytes(DataOutput out) throws IOException {
+
+        }
+
+        @Override
+        public void fromBytes(DataInput in) throws IOException {
+
+        }
+    }
+
     private class SortActivity extends AbstractActivityNode {
         private static final long serialVersionUID = 1L;
 
@@ -86,13 +114,15 @@ public class ExternalSortOperatorDescriptor extends AbstractOperatorDescriptor {
         }
 
         @Override
-        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx, final IOperatorEnvironment env,
-                IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
-            final ExternalSortRunGenerator runGen = new ExternalSortRunGenerator(ctx, sortFields,
-                    firstKeyNormalizerFactory, comparatorFactories, recordDescriptors[0], framesLimit);
+        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
             IOperatorNodePushable op = new AbstractUnaryInputSinkOperatorNodePushable() {
+                private ExternalSortRunGenerator runGen;
+
                 @Override
                 public void open() throws HyracksDataException {
+                    runGen = new ExternalSortRunGenerator(ctx, sortFields, firstKeyNormalizerFactory,
+                            comparatorFactories, recordDescriptors[0], framesLimit);
                     runGen.open();
                 }
 
@@ -103,14 +133,17 @@ public class ExternalSortOperatorDescriptor extends AbstractOperatorDescriptor {
 
                 @Override
                 public void close() throws HyracksDataException {
+                    SortTaskState state = new SortTaskState(ctx.getJobletContext().getJobId(), new TaskId(
+                            getActivityId(), partition));
                     runGen.close();
-                    env.set(FRAMESORTER, runGen.getFrameSorter());
-                    env.set(RUNS, runGen.getRuns());
+                    state.runs = runGen.getRuns();
+                    state.frameSorter = runGen.getFrameSorter();
+                    ctx.setStateObject(state);
                 }
 
                 @Override
-                public void flush() throws HyracksDataException {
-                    runGen.flush();
+                public void fail() throws HyracksDataException {
+                    runGen.fail();
                 }
             };
             return op;
@@ -125,22 +158,23 @@ public class ExternalSortOperatorDescriptor extends AbstractOperatorDescriptor {
         }
 
         @Override
-        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx, final IOperatorEnvironment env,
-                IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
+        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
             IOperatorNodePushable op = new AbstractUnaryOutputSourceOperatorNodePushable() {
                 @Override
                 public void initialize() throws HyracksDataException {
-                    List<IFrameReader> runs = (List<IFrameReader>) env.get(RUNS);
-                    FrameSorter frameSorter = (FrameSorter) env.get(FRAMESORTER);
+                    SortTaskState state = (SortTaskState) ctx.getStateObject(new TaskId(new ActivityId(getOperatorId(),
+                            SORT_ACTIVITY_ID), partition));
+                    List<IFrameReader> runs = state.runs;
+                    FrameSorter frameSorter = state.frameSorter;
                     IBinaryComparator[] comparators = new IBinaryComparator[comparatorFactories.length];
                     for (int i = 0; i < comparatorFactories.length; ++i) {
                         comparators[i] = comparatorFactories[i].createBinaryComparator();
                     }
+                    int necessaryFrames = Math.min(runs.size() + 2, framesLimit);
                     ExternalSortRunMerger merger = new ExternalSortRunMerger(ctx, frameSorter, runs, sortFields,
-                            comparators, recordDescriptors[0], framesLimit, writer);
+                            comparators, recordDescriptors[0], necessaryFrames, writer);
                     merger.process();
-                    env.set(FRAMESORTER, null);
-                    env.set(RUNS, null);
                 }
             };
             return op;

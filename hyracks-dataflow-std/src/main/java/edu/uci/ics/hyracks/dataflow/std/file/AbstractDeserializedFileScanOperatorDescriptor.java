@@ -22,8 +22,7 @@ import edu.uci.ics.hyracks.api.dataflow.IOperatorNodePushable;
 import edu.uci.ics.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
-import edu.uci.ics.hyracks.api.job.IOperatorEnvironment;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
+import edu.uci.ics.hyracks.api.job.IOperatorDescriptorRegistry;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractSingleActivityOperatorDescriptor;
 import edu.uci.ics.hyracks.dataflow.std.base.IOpenableDataWriterOperator;
 import edu.uci.ics.hyracks.dataflow.std.util.DeserializedOperatorNodePushable;
@@ -33,7 +32,7 @@ public abstract class AbstractDeserializedFileScanOperatorDescriptor extends Abs
 
     protected FileSplit[] splits;
 
-    public AbstractDeserializedFileScanOperatorDescriptor(JobSpecification spec, FileSplit[] splits,
+    public AbstractDeserializedFileScanOperatorDescriptor(IOperatorDescriptorRegistry spec, FileSplit[] splits,
             RecordDescriptor recordDescriptor) {
         super(spec, 0, 1);
         recordDescriptors[0] = recordDescriptor;
@@ -64,28 +63,31 @@ public abstract class AbstractDeserializedFileScanOperatorDescriptor extends Abs
         public void open() throws HyracksDataException {
             FileSplit split = splits[index];
             RecordDescriptor desc = recordDescriptors[0];
+            IRecordReader reader;
             try {
-                IRecordReader reader = createRecordReader(split.getLocalFile().getFile(), desc);
-                if (desc == null) {
-                    desc = recordDescriptors[0];
-                }
-                writer.open();
-                try {
-                    while (true) {
-                        Object[] record = new Object[desc.getFields().length];
-                        if (!reader.read(record)) {
-                            break;
-                        }
-                        writer.writeData(record);
-                    }
-                } finally {
-                    reader.close();
-                    writer.close();
-                }
+                reader = createRecordReader(split.getLocalFile().getFile(), desc);
             } catch (Exception e) {
                 throw new HyracksDataException(e);
             }
-
+            if (desc == null) {
+                desc = recordDescriptors[0];
+            }
+            writer.open();
+            try {
+                while (true) {
+                    Object[] record = new Object[desc.getFieldCount()];
+                    if (!reader.read(record)) {
+                        break;
+                    }
+                    writer.writeData(record);
+                }
+            } catch (Exception e) {
+                writer.fail();
+                throw new HyracksDataException(e);
+            } finally {
+                reader.close();
+                writer.close();
+            }
         }
 
         @Override
@@ -97,10 +99,15 @@ public abstract class AbstractDeserializedFileScanOperatorDescriptor extends Abs
         public void writeData(Object[] data) throws HyracksDataException {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public void fail() throws HyracksDataException {
+            // do nothing
+        }
     }
 
     @Override
-    public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx, IOperatorEnvironment env,
+    public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
             IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
         return new DeserializedOperatorNodePushable(ctx, new DeserializedFileScanOperator(partition), null);
     }

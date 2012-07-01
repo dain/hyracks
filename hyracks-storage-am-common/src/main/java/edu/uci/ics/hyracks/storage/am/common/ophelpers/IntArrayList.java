@@ -46,6 +46,15 @@ public class IntArrayList {
         data[size++] = i;
     }
 
+    public void addFirst(int i) {
+        int[] newData = new int[data.length + 1];
+        System.arraycopy(data, 0, newData, 0, first);
+        System.arraycopy(data, first, newData, first + 1, size - first);
+        data = newData;
+        data[first] = i;
+        size++;
+    }
+
     public void removeLast() {
         if (size > 0)
             size--;

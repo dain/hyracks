@@ -22,8 +22,8 @@ import edu.uci.ics.hyracks.api.constraints.IConstraintAcceptor;
 import edu.uci.ics.hyracks.api.dataflow.IOperatorDescriptor;
 import edu.uci.ics.hyracks.api.dataflow.OperatorDescriptorId;
 import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
+import edu.uci.ics.hyracks.api.job.IOperatorDescriptorRegistry;
 import edu.uci.ics.hyracks.api.job.JobActivityGraph;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
 
 public abstract class AbstractOperatorDescriptor implements IOperatorDescriptor {
     private static final long serialVersionUID = 1L;
@@ -38,12 +38,14 @@ public abstract class AbstractOperatorDescriptor implements IOperatorDescriptor 
 
     protected final int outputArity;
 
-    public AbstractOperatorDescriptor(JobSpecification spec, int inputArity, int outputArity) {
-        odId = spec.createOperatorDescriptorId();
+    protected String displayName;
+
+    public AbstractOperatorDescriptor(IOperatorDescriptorRegistry spec, int inputArity, int outputArity) {
+        odId = spec.createOperatorDescriptorId(this);
         this.inputArity = inputArity;
         this.outputArity = outputArity;
         recordDescriptors = new RecordDescriptor[outputArity];
-        spec.getOperatorMap().put(getOperatorId(), this);
+        displayName = getClass().getName() + "[" + odId + "]";
     }
 
     @Override
@@ -66,6 +68,14 @@ public abstract class AbstractOperatorDescriptor implements IOperatorDescriptor 
         return recordDescriptors;
     }
 
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
     @Override
     public void contributeSchedulingConstraints(IConstraintAcceptor constraintAcceptor, JobActivityGraph plan,
             ICCApplicationContext appCtx) {
@@ -75,11 +85,11 @@ public abstract class AbstractOperatorDescriptor implements IOperatorDescriptor 
     @Override
     public JSONObject toJSON() throws JSONException {
         JSONObject jop = new JSONObject();
-        jop.put("type", "operator");
-        jop.put("id", getOperatorId().getId());
+        jop.put("id", String.valueOf(getOperatorId()));
         jop.put("java-class", getClass().getName());
         jop.put("in-arity", getInputArity());
         jop.put("out-arity", getOutputArity());
+        jop.put("display-name", displayName);
         return jop;
     }
 }

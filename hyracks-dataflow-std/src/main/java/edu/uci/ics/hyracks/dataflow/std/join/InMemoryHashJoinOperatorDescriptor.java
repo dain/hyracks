@@ -14,12 +14,16 @@
  */
 package edu.uci.ics.hyracks.dataflow.std.join;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import edu.uci.ics.hyracks.api.context.IHyracksTaskContext;
 import edu.uci.ics.hyracks.api.dataflow.ActivityId;
 import edu.uci.ics.hyracks.api.dataflow.IActivityGraphBuilder;
 import edu.uci.ics.hyracks.api.dataflow.IOperatorNodePushable;
+import edu.uci.ics.hyracks.api.dataflow.TaskId;
 import edu.uci.ics.hyracks.api.dataflow.value.IBinaryComparator;
 import edu.uci.ics.hyracks.api.dataflow.value.IBinaryComparatorFactory;
 import edu.uci.ics.hyracks.api.dataflow.value.IBinaryHashFunctionFactory;
@@ -29,19 +33,23 @@ import edu.uci.ics.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import edu.uci.ics.hyracks.api.dataflow.value.ITuplePartitionComputer;
 import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
-import edu.uci.ics.hyracks.api.job.IOperatorEnvironment;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
+import edu.uci.ics.hyracks.api.job.IOperatorDescriptorRegistry;
+import edu.uci.ics.hyracks.api.job.JobId;
 import edu.uci.ics.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import edu.uci.ics.hyracks.dataflow.common.comm.io.FrameTuplePairComparator;
 import edu.uci.ics.hyracks.dataflow.common.comm.util.FrameUtils;
 import edu.uci.ics.hyracks.dataflow.common.data.partition.FieldHashPartitionComputerFactory;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractActivityNode;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
+import edu.uci.ics.hyracks.dataflow.std.base.AbstractStateObject;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputSinkOperatorNodePushable;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputUnaryOutputOperatorNodePushable;
+import edu.uci.ics.hyracks.dataflow.std.structures.ISerializableTable;
+import edu.uci.ics.hyracks.dataflow.std.structures.SerializableHashTable;
 
 public class InMemoryHashJoinOperatorDescriptor extends AbstractOperatorDescriptor {
-    private static final String JOINER = "joiner";
+    private static final int BUILD_ACTIVITY_ID = 0;
+    private static final int PROBE_ACTIVITY_ID = 1;
 
     private static final long serialVersionUID = 1L;
     private final int[] keys0;
@@ -52,7 +60,7 @@ public class InMemoryHashJoinOperatorDescriptor extends AbstractOperatorDescript
     private final INullWriterFactory[] nullWriterFactories1;
     private final int tableSize;
 
-    public InMemoryHashJoinOperatorDescriptor(JobSpecification spec, int[] keys0, int[] keys1,
+    public InMemoryHashJoinOperatorDescriptor(IOperatorDescriptorRegistry spec, int[] keys0, int[] keys1,
             IBinaryHashFunctionFactory[] hashFunctionFactories, IBinaryComparatorFactory[] comparatorFactories,
             RecordDescriptor recordDescriptor, int tableSize) {
         super(spec, 2, 1);
@@ -66,7 +74,7 @@ public class InMemoryHashJoinOperatorDescriptor extends AbstractOperatorDescript
         this.tableSize = tableSize;
     }
 
-    public InMemoryHashJoinOperatorDescriptor(JobSpecification spec, int[] keys0, int[] keys1,
+    public InMemoryHashJoinOperatorDescriptor(IOperatorDescriptorRegistry spec, int[] keys0, int[] keys1,
             IBinaryHashFunctionFactory[] hashFunctionFactories, IBinaryComparatorFactory[] comparatorFactories,
             RecordDescriptor recordDescriptor, boolean isLeftOuter, INullWriterFactory[] nullWriterFactories1,
             int tableSize) {
@@ -97,6 +105,27 @@ public class InMemoryHashJoinOperatorDescriptor extends AbstractOperatorDescript
         builder.addBlockingEdge(hba, hpa);
     }
 
+    public static class HashBuildTaskState extends AbstractStateObject {
+        private InMemoryHashJoin joiner;
+
+        public HashBuildTaskState() {
+        }
+
+        private HashBuildTaskState(JobId jobId, TaskId taskId) {
+            super(jobId, taskId);
+        }
+
+        @Override
+        public void toBytes(DataOutput out) throws IOException {
+
+        }
+
+        @Override
+        public void fromBytes(DataInput in) throws IOException {
+
+        }
+    }
+
     private class HashBuildActivityNode extends AbstractActivityNode {
         private static final long serialVersionUID = 1L;
 
@@ -105,10 +134,12 @@ public class InMemoryHashJoinOperatorDescriptor extends AbstractOperatorDescript
         }
 
         @Override
-        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx, final IOperatorEnvironment env,
-                IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
-            final RecordDescriptor rd0 = recordDescProvider.getInputRecordDescriptor(getOperatorId(), 0);
-            final RecordDescriptor rd1 = recordDescProvider.getInputRecordDescriptor(getOperatorId(), 1);
+        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
+            final RecordDescriptor rd0 = recordDescProvider
+                    .getInputRecordDescriptor(getOperatorId(), BUILD_ACTIVITY_ID);
+            final RecordDescriptor rd1 = recordDescProvider
+                    .getInputRecordDescriptor(getOperatorId(), PROBE_ACTIVITY_ID);
             final IBinaryComparator[] comparators = new IBinaryComparator[comparatorFactories.length];
             for (int i = 0; i < comparatorFactories.length; ++i) {
                 comparators[i] = comparatorFactories[i].createBinaryComparator();
@@ -121,7 +152,7 @@ public class InMemoryHashJoinOperatorDescriptor extends AbstractOperatorDescript
             }
 
             IOperatorNodePushable op = new AbstractUnaryInputSinkOperatorNodePushable() {
-                private InMemoryHashJoin joiner;
+                private HashBuildTaskState state;
 
                 @Override
                 public void open() throws HyracksDataException {
@@ -129,25 +160,29 @@ public class InMemoryHashJoinOperatorDescriptor extends AbstractOperatorDescript
                             .createPartitioner();
                     ITuplePartitionComputer hpc1 = new FieldHashPartitionComputerFactory(keys1, hashFunctionFactories)
                             .createPartitioner();
-                    joiner = new InMemoryHashJoin(ctx, tableSize, new FrameTupleAccessor(ctx.getFrameSize(), rd0),
-                            hpc0, new FrameTupleAccessor(ctx.getFrameSize(), rd1), hpc1, new FrameTuplePairComparator(
-                                    keys0, keys1, comparators), isLeftOuter, nullWriters1);
+                    state = new HashBuildTaskState(ctx.getJobletContext().getJobId(), new TaskId(getActivityId(),
+                            partition));
+                    ISerializableTable table = new SerializableHashTable(tableSize, ctx);
+                    state.joiner = new InMemoryHashJoin(ctx, tableSize,
+                            new FrameTupleAccessor(ctx.getFrameSize(), rd0), hpc0, new FrameTupleAccessor(
+                                    ctx.getFrameSize(), rd1), hpc1, new FrameTuplePairComparator(keys0, keys1,
+                                    comparators), isLeftOuter, nullWriters1, table);
                 }
 
                 @Override
                 public void nextFrame(ByteBuffer buffer) throws HyracksDataException {
                     ByteBuffer copyBuffer = ctx.allocateFrame();
                     FrameUtils.copy(buffer, copyBuffer);
-                    joiner.build(copyBuffer);
+                    state.joiner.build(copyBuffer);
                 }
 
                 @Override
                 public void close() throws HyracksDataException {
-                    env.set(JOINER, joiner);
+                    ctx.setStateObject(state);
                 }
 
                 @Override
-                public void flush() throws HyracksDataException {
+                public void fail() throws HyracksDataException {
                 }
             };
             return op;
@@ -162,32 +197,32 @@ public class InMemoryHashJoinOperatorDescriptor extends AbstractOperatorDescript
         }
 
         @Override
-        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx, final IOperatorEnvironment env,
-                IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
+        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
             IOperatorNodePushable op = new AbstractUnaryInputUnaryOutputOperatorNodePushable() {
-                private InMemoryHashJoin joiner;
+                private HashBuildTaskState state;
 
                 @Override
                 public void open() throws HyracksDataException {
-                    joiner = (InMemoryHashJoin) env.get(JOINER);
+                    state = (HashBuildTaskState) ctx.getStateObject(new TaskId(new ActivityId(getOperatorId(),
+                            BUILD_ACTIVITY_ID), partition));
                     writer.open();
                 }
 
                 @Override
                 public void nextFrame(ByteBuffer buffer) throws HyracksDataException {
-                    joiner.join(buffer, writer);
+                    state.joiner.join(buffer, writer);
                 }
 
                 @Override
                 public void close() throws HyracksDataException {
-                    joiner.closeJoin(writer);
+                    state.joiner.closeJoin(writer);
                     writer.close();
-                    env.set(JOINER, null);
                 }
 
                 @Override
-                public void flush() throws HyracksDataException {
-                    writer.flush();
+                public void fail() throws HyracksDataException {
+                    writer.fail();
                 }
             };
             return op;

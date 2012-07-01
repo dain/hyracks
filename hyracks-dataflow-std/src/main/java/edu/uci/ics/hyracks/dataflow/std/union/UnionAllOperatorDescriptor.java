@@ -24,14 +24,13 @@ import edu.uci.ics.hyracks.api.dataflow.IOperatorNodePushable;
 import edu.uci.ics.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
-import edu.uci.ics.hyracks.api.job.IOperatorEnvironment;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
+import edu.uci.ics.hyracks.api.job.IOperatorDescriptorRegistry;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractActivityNode;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryOutputOperatorNodePushable;
 
 public class UnionAllOperatorDescriptor extends AbstractOperatorDescriptor {
-    public UnionAllOperatorDescriptor(JobSpecification spec, int nInputs, RecordDescriptor recordDescriptor) {
+    public UnionAllOperatorDescriptor(IOperatorDescriptorRegistry spec, int nInputs, RecordDescriptor recordDescriptor) {
         super(spec, nInputs, 1);
         recordDescriptors[0] = recordDescriptor;
     }
@@ -56,7 +55,7 @@ public class UnionAllOperatorDescriptor extends AbstractOperatorDescriptor {
         }
 
         @Override
-        public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx, IOperatorEnvironment env,
+        public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
                 IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions)
                 throws HyracksDataException {
             RecordDescriptor inRecordDesc = recordDescProvider.getInputRecordDescriptor(getOperatorId(), 0);
@@ -68,6 +67,8 @@ public class UnionAllOperatorDescriptor extends AbstractOperatorDescriptor {
         private int nOpened;
 
         private int nClosed;
+
+        private boolean failed;
 
         public UnionOperator(IHyracksTaskContext ctx, RecordDescriptor inRecordDesc) {
             nOpened = 0;
@@ -99,9 +100,12 @@ public class UnionAllOperatorDescriptor extends AbstractOperatorDescriptor {
                 }
 
                 @Override
-                public void flush() throws HyracksDataException {
+                public void fail() throws HyracksDataException {
                     synchronized (UnionOperator.this) {
-                        writer.flush();
+                        if (failed) {
+                            writer.fail();
+                        }
+                        failed = true;
                     }
                 }
 

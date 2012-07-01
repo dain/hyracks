@@ -16,12 +16,12 @@ package edu.uci.ics.hyracks.dataflow.std.base;
 
 import java.util.BitSet;
 
-import edu.uci.ics.hyracks.api.job.JobSpecification;
+import edu.uci.ics.hyracks.api.job.IConnectorDescriptorRegistry;
 
 public abstract class AbstractMToNConnectorDescriptor extends AbstractConnectorDescriptor {
     private static final long serialVersionUID = 1L;
 
-    public AbstractMToNConnectorDescriptor(JobSpecification spec) {
+    public AbstractMToNConnectorDescriptor(IConnectorDescriptorRegistry spec) {
         super(spec);
     }
 
@@ -30,5 +30,12 @@ public abstract class AbstractMToNConnectorDescriptor extends AbstractConnectorD
             BitSet targetBitmap) {
         targetBitmap.clear();
         targetBitmap.set(0, nConsumerPartitions);
+    }
+
+    @Override
+    public void indicateSourcePartitions(int nProducerPartitions, int nConsumerPartitions, int consumerIndex,
+            BitSet sourceBitmap) {
+        sourceBitmap.clear();
+        sourceBitmap.set(0, nProducerPartitions);
     }
 }

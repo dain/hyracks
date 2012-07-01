@@ -21,29 +21,39 @@ import edu.uci.ics.hyracks.api.application.ICCApplicationContext;
 import edu.uci.ics.hyracks.api.constraints.IConstraintAcceptor;
 import edu.uci.ics.hyracks.api.dataflow.ConnectorDescriptorId;
 import edu.uci.ics.hyracks.api.dataflow.IConnectorDescriptor;
+import edu.uci.ics.hyracks.api.job.IConnectorDescriptorRegistry;
 import edu.uci.ics.hyracks.api.job.JobActivityGraph;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
 
 public abstract class AbstractConnectorDescriptor implements IConnectorDescriptor {
     private static final long serialVersionUID = 1L;
     protected final ConnectorDescriptorId id;
 
-    public AbstractConnectorDescriptor(JobSpecification spec) {
-        this.id = spec.createConnectorDescriptor();
-        spec.getConnectorMap().put(id, this);
+    protected String displayName;
+
+    public AbstractConnectorDescriptor(IConnectorDescriptorRegistry spec) {
+        this.id = spec.createConnectorDescriptor(this);
+        displayName = getClass().getName() + "[" + id + "]";
     }
 
     public ConnectorDescriptorId getConnectorId() {
         return id;
     }
 
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
     @Override
     public JSONObject toJSON() throws JSONException {
         JSONObject jconn = new JSONObject();
 
-        jconn.put("type", "connector");
-        jconn.put("id", getConnectorId().getId());
+        jconn.put("id", String.valueOf(getConnectorId()));
         jconn.put("java-class", getClass().getName());
+        jconn.put("display-name", displayName);
 
         return jconn;
     }

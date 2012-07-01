@@ -16,14 +16,14 @@ package edu.uci.ics.hyracks.storage.common.file;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import edu.uci.ics.hyracks.api.io.FileHandle;
+import edu.uci.ics.hyracks.api.io.IFileHandle;
 
 public class BufferedFileHandle {
     private final int fileId;
-    private FileHandle handle;
+    private IFileHandle handle;
     private final AtomicInteger refCount;
 
-    public BufferedFileHandle(int fileId, FileHandle handle) {
+    public BufferedFileHandle(int fileId, IFileHandle handle) {
         this.fileId = fileId;
         this.handle = handle;
         refCount = new AtomicInteger();
@@ -33,8 +33,16 @@ public class BufferedFileHandle {
         return fileId;
     }
 
-    public FileHandle getFileHandle() {
+    public IFileHandle getFileHandle() {
         return handle;
+    }
+
+    public void markAsDeleted() {
+        handle = null;
+    }
+
+    public boolean fileHasBeenDeleted() {
+        return handle == null;
     }
 
     public int incReferenceCount() {
@@ -44,7 +52,7 @@ public class BufferedFileHandle {
     public int decReferenceCount() {
         return refCount.decrementAndGet();
     }
-    
+
     public int getReferenceCount() {
         return refCount.get();
     }

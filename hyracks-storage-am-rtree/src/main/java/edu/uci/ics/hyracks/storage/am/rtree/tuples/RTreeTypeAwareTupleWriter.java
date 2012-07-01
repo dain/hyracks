@@ -17,13 +17,13 @@ package edu.uci.ics.hyracks.storage.am.rtree.tuples;
 
 import java.nio.ByteBuffer;
 
-import edu.uci.ics.hyracks.api.dataflow.value.ITypeTrait;
+import edu.uci.ics.hyracks.api.dataflow.value.ITypeTraits;
 import edu.uci.ics.hyracks.storage.am.common.api.ITreeIndexTupleReference;
 import edu.uci.ics.hyracks.storage.am.common.tuples.TypeAwareTupleWriter;
 
 public class RTreeTypeAwareTupleWriter extends TypeAwareTupleWriter {
 
-    public RTreeTypeAwareTupleWriter(ITypeTrait[] typeTraits) {
+    public RTreeTypeAwareTupleWriter(ITypeTraits[] typeTraits) {
         super(typeTraits);
     }
 
@@ -39,7 +39,7 @@ public class RTreeTypeAwareTupleWriter extends TypeAwareTupleWriter {
         // since the r-tree has fixed length keys, we don't actually need this?
         encDec.reset(targetBuf.array(), runner);
         for (int i = startField; i < startField + refs.length; i++) {
-            if (typeTraits[i].getStaticallyKnownDataLength() == ITypeTrait.VARIABLE_LENGTH) {
+            if (!typeTraits[i].isFixedLength()) {
                 encDec.encode(refs[i].getFieldLength(i));
             }
         }

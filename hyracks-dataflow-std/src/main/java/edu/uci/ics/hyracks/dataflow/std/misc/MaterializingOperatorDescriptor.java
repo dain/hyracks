@@ -14,38 +14,45 @@
  */
 package edu.uci.ics.hyracks.dataflow.std.misc;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import edu.uci.ics.hyracks.api.context.IHyracksTaskContext;
 import edu.uci.ics.hyracks.api.dataflow.ActivityId;
 import edu.uci.ics.hyracks.api.dataflow.IActivityGraphBuilder;
 import edu.uci.ics.hyracks.api.dataflow.IOperatorNodePushable;
+import edu.uci.ics.hyracks.api.dataflow.TaskId;
 import edu.uci.ics.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
 import edu.uci.ics.hyracks.api.io.FileReference;
-import edu.uci.ics.hyracks.api.job.IOperatorEnvironment;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
+import edu.uci.ics.hyracks.api.job.IOperatorDescriptorRegistry;
+import edu.uci.ics.hyracks.api.job.JobId;
 import edu.uci.ics.hyracks.dataflow.common.io.RunFileReader;
 import edu.uci.ics.hyracks.dataflow.common.io.RunFileWriter;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractActivityNode;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
+import edu.uci.ics.hyracks.dataflow.std.base.AbstractStateObject;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputSinkOperatorNodePushable;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryOutputSourceOperatorNodePushable;
 
 public class MaterializingOperatorDescriptor extends AbstractOperatorDescriptor {
     private static final long serialVersionUID = 1L;
-    protected static final String MATERIALIZED_FILE = "materialized-file";
 
-    public MaterializingOperatorDescriptor(JobSpecification spec, RecordDescriptor recordDescriptor) {
+    private final static int MATERIALIZER_ACTIVITY_ID = 0;
+    private final static int READER_ACTIVITY_ID = 1;
+
+    public MaterializingOperatorDescriptor(IOperatorDescriptorRegistry spec, RecordDescriptor recordDescriptor) {
         super(spec, 1, 1);
         recordDescriptors[0] = recordDescriptor;
     }
 
     @Override
     public void contributeActivities(IActivityGraphBuilder builder) {
-        MaterializerActivityNode ma = new MaterializerActivityNode(new ActivityId(odId, 0));
-        ReaderActivityNode ra = new ReaderActivityNode(new ActivityId(odId, 1));
+        MaterializerActivityNode ma = new MaterializerActivityNode(new ActivityId(odId, MATERIALIZER_ACTIVITY_ID));
+        ReaderActivityNode ra = new ReaderActivityNode(new ActivityId(odId, READER_ACTIVITY_ID));
 
         builder.addActivity(ma);
         builder.addSourceEdge(0, ma, 0);
@@ -56,6 +63,27 @@ public class MaterializingOperatorDescriptor extends AbstractOperatorDescriptor 
         builder.addBlockingEdge(ma, ra);
     }
 
+    public static class MaterializerTaskState extends AbstractStateObject {
+        private RunFileWriter out;
+
+        public MaterializerTaskState() {
+        }
+
+        private MaterializerTaskState(JobId jobId, TaskId taskId) {
+            super(jobId, taskId);
+        }
+
+        @Override
+        public void toBytes(DataOutput out) throws IOException {
+
+        }
+
+        @Override
+        public void fromBytes(DataInput in) throws IOException {
+
+        }
+    }
+
     private final class MaterializerActivityNode extends AbstractActivityNode {
         private static final long serialVersionUID = 1L;
 
@@ -64,32 +92,34 @@ public class MaterializingOperatorDescriptor extends AbstractOperatorDescriptor 
         }
 
         @Override
-        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx, final IOperatorEnvironment env,
-                IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
+        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
             return new AbstractUnaryInputSinkOperatorNodePushable() {
-                private RunFileWriter out;
+                private MaterializerTaskState state;
 
                 @Override
                 public void open() throws HyracksDataException {
+                    state = new MaterializerTaskState(ctx.getJobletContext().getJobId(), new TaskId(getActivityId(),
+                            partition));
                     FileReference file = ctx.getJobletContext().createManagedWorkspaceFile(
                             MaterializingOperatorDescriptor.class.getSimpleName());
-                    out = new RunFileWriter(file, ctx.getIOManager());
-                    out.open();
+                    state.out = new RunFileWriter(file, ctx.getIOManager());
+                    state.out.open();
                 }
 
                 @Override
                 public void nextFrame(ByteBuffer buffer) throws HyracksDataException {
-                    out.nextFrame(buffer);
+                    state.out.nextFrame(buffer);
                 }
 
                 @Override
                 public void close() throws HyracksDataException {
-                    out.close();
-                    env.set(MATERIALIZED_FILE, out);
+                    state.out.close();
+                    ctx.setStateObject(state);
                 }
 
                 @Override
-                public void flush() throws HyracksDataException {
+                public void fail() throws HyracksDataException {
                 }
             };
         }
@@ -103,28 +133,34 @@ public class MaterializingOperatorDescriptor extends AbstractOperatorDescriptor 
         }
 
         @Override
-        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx, final IOperatorEnvironment env,
-                IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
+        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
             return new AbstractUnaryOutputSourceOperatorNodePushable() {
                 @Override
                 public void initialize() throws HyracksDataException {
                     ByteBuffer frame = ctx.allocateFrame();
-                    RunFileWriter out = (RunFileWriter) env.get(MATERIALIZED_FILE);
-                    RunFileReader in = out.createReader();
+                    MaterializerTaskState state = (MaterializerTaskState) ctx.getStateObject(new TaskId(new ActivityId(
+                            getOperatorId(), MATERIALIZER_ACTIVITY_ID), partition));
+                    RunFileReader in = state.out.createReader();
                     writer.open();
-                    in.open();
-                    while (in.nextFrame(frame)) {
-                        frame.flip();
-                        writer.nextFrame(frame);
-                        frame.clear();
+                    try {
+                        in.open();
+                        while (in.nextFrame(frame)) {
+                            frame.flip();
+                            writer.nextFrame(frame);
+                            frame.clear();
+                        }
+                        in.close();
+                    } catch (Exception e) {
+                        writer.fail();
+                        throw new HyracksDataException(e);
+                    } finally {
+                        writer.close();
                     }
-                    in.close();
-                    writer.close();
                 }
 
                 @Override
                 public void deinitialize() throws HyracksDataException {
-                    env.set(MATERIALIZED_FILE, null);
                 }
             };
         }

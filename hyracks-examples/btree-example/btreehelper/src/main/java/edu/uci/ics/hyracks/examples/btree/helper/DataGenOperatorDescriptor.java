@@ -25,8 +25,7 @@ import edu.uci.ics.hyracks.api.dataflow.IOperatorNodePushable;
 import edu.uci.ics.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
-import edu.uci.ics.hyracks.api.job.IOperatorEnvironment;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
+import edu.uci.ics.hyracks.api.job.IOperatorDescriptorRegistry;
 import edu.uci.ics.hyracks.dataflow.common.comm.io.ArrayTupleBuilder;
 import edu.uci.ics.hyracks.dataflow.common.comm.io.FrameTupleAppender;
 import edu.uci.ics.hyracks.dataflow.common.comm.util.FrameUtils;
@@ -46,7 +45,7 @@ public class DataGenOperatorDescriptor extends AbstractSingleActivityOperatorDes
     private final int uniqueField;
     private final long randomSeed;
 
-    public DataGenOperatorDescriptor(JobSpecification spec, RecordDescriptor outputRecord, int numRecords,
+    public DataGenOperatorDescriptor(IOperatorDescriptorRegistry spec, RecordDescriptor outputRecord, int numRecords,
             int uniqueField, int intMinVal, int intMaxVal, int maxStrLen, long randomSeed) {
         super(spec, 0, 1);
         this.numRecords = numRecords;
@@ -59,7 +58,7 @@ public class DataGenOperatorDescriptor extends AbstractSingleActivityOperatorDes
     }
 
     @Override
-    public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx, IOperatorEnvironment env,
+    public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
             IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
 
         final ByteBuffer outputFrame = ctx.allocateFrame();
@@ -83,7 +82,7 @@ public class DataGenOperatorDescriptor extends AbstractSingleActivityOperatorDes
                     appender.reset(outputFrame, true);
                     for (int i = 0; i < numRecords; i++) {
                         tb.reset();
-                        for (int j = 0; j < recDesc.getFields().length; j++) {
+                        for (int j = 0; j < recDesc.getFieldCount(); j++) {
                             genField(tb, j);
                         }
 
@@ -96,6 +95,9 @@ public class DataGenOperatorDescriptor extends AbstractSingleActivityOperatorDes
                         }
                     }
                     FrameUtils.flushFrame(outputFrame, writer);
+                } catch (Exception e) {
+                    writer.fail();
+                    throw new HyracksDataException(e);
                 } finally {
                     writer.close();
                 }

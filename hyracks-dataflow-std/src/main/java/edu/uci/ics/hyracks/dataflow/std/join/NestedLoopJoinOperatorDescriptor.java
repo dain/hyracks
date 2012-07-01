@@ -15,35 +15,41 @@
 
 package edu.uci.ics.hyracks.dataflow.std.join;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import edu.uci.ics.hyracks.api.context.IHyracksTaskContext;
 import edu.uci.ics.hyracks.api.dataflow.ActivityId;
 import edu.uci.ics.hyracks.api.dataflow.IActivityGraphBuilder;
 import edu.uci.ics.hyracks.api.dataflow.IOperatorNodePushable;
+import edu.uci.ics.hyracks.api.dataflow.TaskId;
 import edu.uci.ics.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import edu.uci.ics.hyracks.api.dataflow.value.ITuplePairComparator;
 import edu.uci.ics.hyracks.api.dataflow.value.ITuplePairComparatorFactory;
 import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
-import edu.uci.ics.hyracks.api.job.IOperatorEnvironment;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
+import edu.uci.ics.hyracks.api.job.IOperatorDescriptorRegistry;
+import edu.uci.ics.hyracks.api.job.JobId;
 import edu.uci.ics.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import edu.uci.ics.hyracks.dataflow.common.comm.util.FrameUtils;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractActivityNode;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractOperatorDescriptor;
+import edu.uci.ics.hyracks.dataflow.std.base.AbstractStateObject;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputSinkOperatorNodePushable;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputUnaryOutputOperatorNodePushable;
 
 public class NestedLoopJoinOperatorDescriptor extends AbstractOperatorDescriptor {
-    private static final String JOINER = "joiner";
+    private static final int JOIN_CACHE_ACTIVITY_ID = 0;
+    private static final int NL_JOIN_ACTIVITY_ID = 1;
 
     private static final long serialVersionUID = 1L;
     private final ITuplePairComparatorFactory comparatorFactory;
     private final int memSize;
 
-    public NestedLoopJoinOperatorDescriptor(JobSpecification spec, ITuplePairComparatorFactory comparatorFactory,
-            RecordDescriptor recordDescriptor, int memSize) {
+    public NestedLoopJoinOperatorDescriptor(IOperatorDescriptorRegistry spec,
+            ITuplePairComparatorFactory comparatorFactory, RecordDescriptor recordDescriptor, int memSize) {
         super(spec, 2, 1);
         this.comparatorFactory = comparatorFactory;
         this.recordDescriptors[0] = recordDescriptor;
@@ -52,8 +58,9 @@ public class NestedLoopJoinOperatorDescriptor extends AbstractOperatorDescriptor
 
     @Override
     public void contributeActivities(IActivityGraphBuilder builder) {
-        JoinCacheActivityNode jc = new JoinCacheActivityNode(new ActivityId(getOperatorId(), 0));
-        NestedLoopJoinActivityNode nlj = new NestedLoopJoinActivityNode(new ActivityId(getOperatorId(), 1));
+        JoinCacheActivityNode jc = new JoinCacheActivityNode(new ActivityId(getOperatorId(), JOIN_CACHE_ACTIVITY_ID));
+        NestedLoopJoinActivityNode nlj = new NestedLoopJoinActivityNode(new ActivityId(getOperatorId(),
+                NL_JOIN_ACTIVITY_ID));
 
         builder.addActivity(jc);
         builder.addSourceEdge(1, jc, 0);
@@ -65,6 +72,27 @@ public class NestedLoopJoinOperatorDescriptor extends AbstractOperatorDescriptor
         builder.addBlockingEdge(jc, nlj);
     }
 
+    public static class JoinCacheTaskState extends AbstractStateObject {
+        private NestedLoopJoin joiner;
+
+        public JoinCacheTaskState() {
+        }
+
+        private JoinCacheTaskState(JobId jobId, TaskId taskId) {
+            super(jobId, taskId);
+        }
+
+        @Override
+        public void toBytes(DataOutput out) throws IOException {
+
+        }
+
+        @Override
+        public void fromBytes(DataInput in) throws IOException {
+
+        }
+    }
+
     private class JoinCacheActivityNode extends AbstractActivityNode {
         private static final long serialVersionUID = 1L;
 
@@ -73,18 +101,20 @@ public class NestedLoopJoinOperatorDescriptor extends AbstractOperatorDescriptor
         }
 
         @Override
-        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx, final IOperatorEnvironment env,
-                IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
+        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
             final RecordDescriptor rd0 = recordDescProvider.getInputRecordDescriptor(getOperatorId(), 0);
             final RecordDescriptor rd1 = recordDescProvider.getInputRecordDescriptor(getOperatorId(), 1);
-            final ITuplePairComparator comparator = comparatorFactory.createTuplePairComparator();
+            final ITuplePairComparator comparator = comparatorFactory.createTuplePairComparator(ctx);
 
             IOperatorNodePushable op = new AbstractUnaryInputSinkOperatorNodePushable() {
-                private NestedLoopJoin joiner;
+                private JoinCacheTaskState state;
 
                 @Override
                 public void open() throws HyracksDataException {
-                    joiner = new NestedLoopJoin(ctx, new FrameTupleAccessor(ctx.getFrameSize(), rd0),
+                    state = new JoinCacheTaskState(ctx.getJobletContext().getJobId(), new TaskId(getActivityId(),
+                            partition));
+                    state.joiner = new NestedLoopJoin(ctx, new FrameTupleAccessor(ctx.getFrameSize(), rd0),
                             new FrameTupleAccessor(ctx.getFrameSize(), rd1), comparator, memSize);
                 }
 
@@ -93,17 +123,17 @@ public class NestedLoopJoinOperatorDescriptor extends AbstractOperatorDescriptor
                     ByteBuffer copyBuffer = ctx.allocateFrame();
                     FrameUtils.copy(buffer, copyBuffer);
                     FrameUtils.makeReadable(copyBuffer);
-                    joiner.cache(copyBuffer);
+                    state.joiner.cache(copyBuffer);
                 }
 
                 @Override
                 public void close() throws HyracksDataException {
-                    joiner.closeCache();
-                    env.set(JOINER, joiner);
+                    state.joiner.closeCache();
+                    ctx.setStateObject(state);
                 }
 
                 @Override
-                public void flush() throws HyracksDataException {
+                public void fail() throws HyracksDataException {
                 }
             };
             return op;
@@ -118,33 +148,33 @@ public class NestedLoopJoinOperatorDescriptor extends AbstractOperatorDescriptor
         }
 
         @Override
-        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx, final IOperatorEnvironment env,
-                IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
+        public IOperatorNodePushable createPushRuntime(final IHyracksTaskContext ctx,
+                IRecordDescriptorProvider recordDescProvider, final int partition, int nPartitions) {
 
             IOperatorNodePushable op = new AbstractUnaryInputUnaryOutputOperatorNodePushable() {
-                private NestedLoopJoin joiner;
+                private JoinCacheTaskState state;
 
                 @Override
                 public void open() throws HyracksDataException {
-                    joiner = (NestedLoopJoin) env.get(JOINER);
+                    state = (JoinCacheTaskState) ctx.getStateObject(new TaskId(new ActivityId(getOperatorId(),
+                            JOIN_CACHE_ACTIVITY_ID), partition));
                     writer.open();
                 }
 
                 @Override
                 public void nextFrame(ByteBuffer buffer) throws HyracksDataException {
-                    joiner.join(buffer, writer);
+                    state.joiner.join(buffer, writer);
                 }
 
                 @Override
                 public void close() throws HyracksDataException {
-                    joiner.closeJoin(writer);
+                    state.joiner.closeJoin(writer);
                     writer.close();
-                    env.set(JOINER, null);
                 }
 
                 @Override
-                public void flush() throws HyracksDataException {
-                    writer.flush();
+                public void fail() throws HyracksDataException {
+                    writer.fail();
                 }
             };
             return op;

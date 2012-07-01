@@ -15,58 +15,36 @@
 
 package edu.uci.ics.hyracks.storage.am.rtree.frames;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInput;
-import java.io.DataInputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 
-import edu.uci.ics.hyracks.api.dataflow.value.ISerializerDeserializer;
-import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
+import edu.uci.ics.hyracks.api.dataflow.value.IBinaryComparator;
+import edu.uci.ics.hyracks.data.std.accessors.PointableBinaryComparatorFactory;
+import edu.uci.ics.hyracks.data.std.primitive.IntegerPointable;
 import edu.uci.ics.hyracks.dataflow.common.data.accessors.ITupleReference;
-import edu.uci.ics.hyracks.dataflow.common.data.marshalling.DoubleSerializerDeserializer;
 import edu.uci.ics.hyracks.dataflow.common.data.marshalling.IntegerSerializerDeserializer;
-import edu.uci.ics.hyracks.storage.am.common.api.ISplitKey;
-import edu.uci.ics.hyracks.storage.am.common.api.ITreeIndexFrame;
+import edu.uci.ics.hyracks.storage.am.common.api.IPrimitiveValueProvider;
 import edu.uci.ics.hyracks.storage.am.common.api.ITreeIndexTupleReference;
 import edu.uci.ics.hyracks.storage.am.common.api.ITreeIndexTupleWriter;
+import edu.uci.ics.hyracks.storage.am.common.api.TreeIndexException;
 import edu.uci.ics.hyracks.storage.am.common.frames.FrameOpSpaceStatus;
 import edu.uci.ics.hyracks.storage.am.common.ophelpers.MultiComparator;
 import edu.uci.ics.hyracks.storage.am.common.ophelpers.SlotOffTupleOff;
-import edu.uci.ics.hyracks.storage.am.rtree.api.IRTreeFrame;
 import edu.uci.ics.hyracks.storage.am.rtree.api.IRTreeInteriorFrame;
 import edu.uci.ics.hyracks.storage.am.rtree.impls.EntriesOrder;
 import edu.uci.ics.hyracks.storage.am.rtree.impls.PathList;
-import edu.uci.ics.hyracks.storage.am.rtree.impls.RTreeSplitKey;
-import edu.uci.ics.hyracks.storage.am.rtree.impls.UnorderedSlotManager;
-import edu.uci.ics.hyracks.storage.am.rtree.tuples.RTreeTypeAwareTupleWriter;
 
 public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteriorFrame {
 
     private static final int childPtrSize = 4;
+    private IBinaryComparator childPtrCmp = PointableBinaryComparatorFactory.of(IntegerPointable.FACTORY)
+            .createBinaryComparator();
+    private final int keyFieldCount;
 
-    public RTreeNSMInteriorFrame(ITreeIndexTupleWriter tupleWriter, int keyFieldCount) {
-        super(tupleWriter, keyFieldCount);
-    }
-
-    @Override
-    public String printKeys(MultiComparator cmp, ISerializerDeserializer[] fields) throws HyracksDataException {
-        StringBuilder strBuilder = new StringBuilder();
-        int tupleCount = buf.getInt(tupleCountOff);
-        frameTuple.setFieldCount(cmp.getKeyFieldCount());
-        for (int i = 0; i < tupleCount; i++) {
-            frameTuple.resetByTupleIndex(this, i);
-            for (int j = 0; j < cmp.getKeyFieldCount(); j++) {
-                ByteArrayInputStream inStream = new ByteArrayInputStream(frameTuple.getFieldData(j),
-                        frameTuple.getFieldStart(j), frameTuple.getFieldLength(j));
-                DataInput dataIn = new DataInputStream(inStream);
-                Object o = fields[j].deserialize(dataIn);
-                strBuilder.append(o.toString() + " ");
-            }
-            strBuilder.append(" | ");
-        }
-        strBuilder.append("\n");
-        return strBuilder.toString();
+    public RTreeNSMInteriorFrame(ITreeIndexTupleWriter tupleWriter, IPrimitiveValueProvider[] keyValueProviders) {
+        super(tupleWriter, keyValueProviders);
+        keyFieldCount = keyValueProviders.length;
+        frameTuple.setFieldCount(keyFieldCount);
     }
 
     @Override
@@ -169,8 +147,15 @@ public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteri
     }
 
     @Override
-    public int getBestChildPageId(MultiComparator cmp) {
-        return buf.getInt(getChildPointerOff(frameTuple, cmp));
+    public ITreeIndexTupleReference createTupleReference() {
+        ITreeIndexTupleReference tuple = tupleWriter.createTupleReference();
+        tuple.setFieldCount(keyFieldCount);
+        return tuple;
+    }
+
+    @Override
+    public int getBestChildPageId() {
+        return buf.getInt(getChildPointerOff(frameTuple));
     }
 
     @Override
@@ -184,6 +169,12 @@ public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteri
             }
         }
         return -1;
+    }
+
+    @Override
+    public int getChildPageId(int tupleIndex) {
+        frameTuple.resetByTupleIndex(this, tupleIndex);
+        return buf.getInt(getChildPointerOff(frameTuple));
     }
 
     @Override
@@ -205,8 +196,7 @@ public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteri
                 return -1;
             }
         }
-        // return buf.getInt(frameTuple.getFieldStart(cmp.getKeyFieldCount()));
-        return buf.getInt(getChildPointerOff(frameTuple, cmp));
+        return buf.getInt(getChildPointerOff(frameTuple));
     }
 
     @Override
@@ -220,7 +210,7 @@ public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteri
                 return i;
             } else {
                 int pageId = IntegerSerializerDeserializer.getInt(frameTuple.getFieldData(cmp.getKeyFieldCount() - 1),
-                        getChildPointerOff(frameTuple, cmp));
+                        getChildPointerOff(frameTuple));
                 traverseList.add(pageId, -1, parentIndex);
             }
         }
@@ -228,9 +218,8 @@ public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteri
     }
 
     @Override
-    public boolean compact(MultiComparator cmp) {
+    public boolean compact() {
         resetSpaceParams();
-        frameTuple.setFieldCount(cmp.getKeyFieldCount());
 
         int tupleCount = buf.getInt(tupleCountOff);
         int freeSpace = buf.getInt(freeSpaceOff);
@@ -264,11 +253,8 @@ public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteri
     }
 
     @Override
-    public FrameOpSpaceStatus hasSpaceInsert(ITupleReference tuple, MultiComparator cmp) {
-        int bytesRequired = tupleWriter.bytesRequired(tuple) + childPtrSize; // for
-                                                                             // the
-                                                                             // child
-                                                                             // pointer
+    public FrameOpSpaceStatus hasSpaceInsert(ITupleReference tuple) {
+        int bytesRequired = tupleWriter.bytesRequired(tuple) + childPtrSize;
         if (bytesRequired + slotManager.getSlotSize() <= buf.capacity() - buf.getInt(freeSpaceOff)
                 - (buf.getInt(tupleCountOff) * slotManager.getSlotSize()))
             return FrameOpSpaceStatus.SUFFICIENT_CONTIGUOUS_SPACE;
@@ -279,193 +265,41 @@ public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteri
     }
 
     @Override
-    public void adjustKey(ITupleReference tuple, int tupleIndex, MultiComparator cmp) {
+    public void adjustKey(ITupleReference tuple, int tupleIndex, MultiComparator cmp) throws TreeIndexException {
         frameTuple.setFieldCount(cmp.getKeyFieldCount());
         if (tupleIndex == -1) {
             tupleIndex = findTupleByPointer(tuple, cmp);
         }
         if (tupleIndex != -1) {
-            tupleWriter.writeTuple(tuple, buf, getTupleOffset(tupleIndex));
+            tupleWriter.writeTuple(tuple, buf.array(), getTupleOffset(tupleIndex));
+        } else {
+            throw new TreeIndexException("Error: Faild to find a tuple in a page");
+
         }
+
     }
 
     private int pointerCmp(ITupleReference tupleA, ITupleReference tupleB, MultiComparator cmp) {
-        return cmp.getIntCmp().compare(tupleA.getFieldData(cmp.getKeyFieldCount() - 1),
-                getChildPointerOff(tupleA, cmp), childPtrSize, tupleB.getFieldData(cmp.getKeyFieldCount() - 1),
-                getChildPointerOff(tupleB, cmp), childPtrSize);
+        return childPtrCmp
+                .compare(tupleA.getFieldData(cmp.getKeyFieldCount() - 1), getChildPointerOff(tupleA), childPtrSize,
+                        tupleB.getFieldData(cmp.getKeyFieldCount() - 1), getChildPointerOff(tupleB), childPtrSize);
+    }
+
+    public int getTupleSize(ITupleReference tuple) {
+        return tupleWriter.bytesRequired(tuple) + childPtrSize;
+    }
+
+    private int getChildPointerOff(ITupleReference tuple) {
+        return tuple.getFieldStart(tuple.getFieldCount() - 1) + tuple.getFieldLength(tuple.getFieldCount() - 1);
     }
 
     @Override
-    public int split(ITreeIndexFrame rightFrame, ITupleReference tuple, MultiComparator cmp, ISplitKey splitKey)
-            throws Exception {
-
-        rightFrame.setPageTupleFieldCount(cmp.getKeyFieldCount());
-        frameTuple.setFieldCount(cmp.getKeyFieldCount());
-
-        RTreeSplitKey rTreeSplitKey = ((RTreeSplitKey) splitKey);
-        RTreeTypeAwareTupleWriter rTreeTupleWriterLeftFrame = ((RTreeTypeAwareTupleWriter) tupleWriter);
-        RTreeTypeAwareTupleWriter rTreeTupleWriterRightFrame = ((RTreeTypeAwareTupleWriter) rightFrame.getTupleWriter());
-
-        // calculations are based on the R*-tree paper
-        int m = (int) Math.floor((getTupleCount() + 1) * splitFactor);
-        int splitDistribution = getTupleCount() - (2 * m) + 2;
-
-        // to calculate the minimum margin in order to pick the split axis
-        double minMargin = Double.MAX_VALUE;
-        int splitAxis = 0, sortOrder = 0;
-
-        int maxFieldPos = cmp.getKeyFieldCount() / 2;
-        for (int i = 0; i < maxFieldPos; i++) {
-            int j = maxFieldPos + i;
-            for (int k = 0; k < getTupleCount(); ++k) {
-
-                frameTuple.resetByTupleIndex(this, k);
-
-                double LowerKey = DoubleSerializerDeserializer.getDouble(frameTuple.getFieldData(i),
-                        frameTuple.getFieldStart(i));
-                double UpperKey = DoubleSerializerDeserializer.getDouble(frameTuple.getFieldData(j),
-                        frameTuple.getFieldStart(j));
-
-                tupleEntries1.add(k, LowerKey);
-                tupleEntries2.add(k, UpperKey);
-            }
-            double LowerKey = DoubleSerializerDeserializer.getDouble(tuple.getFieldData(i), tuple.getFieldStart(i));
-            double UpperKey = DoubleSerializerDeserializer.getDouble(tuple.getFieldData(j), tuple.getFieldStart(j));
-
-            tupleEntries1.add(-1, LowerKey);
-            tupleEntries2.add(-1, UpperKey);
-
-            tupleEntries1.sort(EntriesOrder.ASCENDING, getTupleCount() + 1);
-            tupleEntries2.sort(EntriesOrder.ASCENDING, getTupleCount() + 1);
-
-            double lowerMargin = 0.0, upperMargin = 0.0;
-            // generate distribution
-            for (int k = 1; k <= splitDistribution; ++k) {
-                int d = m - 1 + k;
-
-                generateDist(tuple, tupleEntries1, rec[0], 0, d);
-                generateDist(tuple, tupleEntries2, rec[1], 0, d);
-                generateDist(tuple, tupleEntries1, rec[2], d, getTupleCount() + 1);
-                generateDist(tuple, tupleEntries2, rec[3], d, getTupleCount() + 1);
-
-                // calculate the margin of the distributions
-                lowerMargin += rec[0].margin() + rec[2].margin();
-                upperMargin += rec[1].margin() + rec[3].margin();
-            }
-            double margin = Math.min(lowerMargin, upperMargin);
-
-            // store minimum margin as split axis
-            if (margin < minMargin) {
-                minMargin = margin;
-                splitAxis = i;
-                sortOrder = (lowerMargin < upperMargin) ? 0 : 2;
-            }
-
-            tupleEntries1.clear();
-            tupleEntries2.clear();
-        }
-
-        for (int i = 0; i < getTupleCount(); ++i) {
-            frameTuple.resetByTupleIndex(this, i);
-            double key = DoubleSerializerDeserializer.getDouble(frameTuple.getFieldData(splitAxis + sortOrder),
-                    frameTuple.getFieldStart(splitAxis + sortOrder));
-            tupleEntries1.add(i, key);
-        }
-        double key = DoubleSerializerDeserializer.getDouble(tuple.getFieldData(splitAxis + sortOrder),
-                tuple.getFieldStart(splitAxis + sortOrder));
-        tupleEntries1.add(-1, key);
-        tupleEntries1.sort(EntriesOrder.ASCENDING, getTupleCount() + 1);
-
-        double minArea = Double.MAX_VALUE;
-        double minOverlap = Double.MAX_VALUE;
-        int splitPoint = 0;
-        for (int i = 1; i <= splitDistribution; ++i) {
-            int d = m - 1 + i;
-
-            generateDist(tuple, tupleEntries1, rec[0], 0, d);
-            generateDist(tuple, tupleEntries1, rec[2], d, getTupleCount() + 1);
-
-            double overlap = rec[0].overlappedArea(rec[2]);
-            if (overlap < minOverlap) {
-                splitPoint = d;
-                minOverlap = overlap;
-                minArea = rec[0].area() + rec[2].area();
-            } else if (overlap == minOverlap) {
-                double area = rec[0].area() + rec[2].area();
-                if (area < minArea) {
-                    splitPoint = d;
-                    minArea = area;
-                }
-            }
-        }
-        int startIndex, endIndex;
-        if (splitPoint < (getTupleCount() + 1) / 2) {
-            startIndex = 0;
-            endIndex = splitPoint;
-        } else {
-            startIndex = splitPoint;
-            endIndex = (getTupleCount() + 1);
-        }
-        boolean tupleInserted = false;
-        int totalBytes = 0, numOfDeletedTuples = 0;
-        for (int i = startIndex; i < endIndex; i++) {
-            if (tupleEntries1.get(i).getTupleIndex() != -1) {
-                frameTuple.resetByTupleIndex(this, tupleEntries1.get(i).getTupleIndex());
-                rightFrame.insert(frameTuple, cmp, -1);
-                ((UnorderedSlotManager) slotManager).modifySlot(
-                        slotManager.getSlotOff(tupleEntries1.get(i).getTupleIndex()), -1);
-                totalBytes += tupleWriter.bytesRequired(frameTuple) + childPtrSize;
-                numOfDeletedTuples++;
-            } else {
-                rightFrame.insert(tuple, cmp, -1);
-                tupleInserted = true;
-            }
-        }
-
-        ((UnorderedSlotManager) slotManager).deleteEmptySlots();
-
-        // maintain space information
-        buf.putInt(totalFreeSpaceOff, buf.getInt(totalFreeSpaceOff) + totalBytes
-                + (slotManager.getSlotSize() * numOfDeletedTuples));
-
-        // compact both pages
-        rightFrame.compact(cmp);
-        compact(cmp);
-
-        if (!tupleInserted) {
-            insert(tuple, cmp, -1);
-        }
-
-        int tupleOff = slotManager.getTupleOff(slotManager.getSlotEndOff());
-        frameTuple.resetByTupleOffset(buf, tupleOff);
-        int splitKeySize = tupleWriter.bytesRequired(frameTuple, 0, cmp.getKeyFieldCount());
-
-        splitKey.initData(splitKeySize);
-        this.adjustMBR(tuples, cmp);
-        rTreeTupleWriterLeftFrame.writeTupleFields(tuples, 0, rTreeSplitKey.getLeftPageBuffer(), 0);
-        rTreeSplitKey.getLeftTuple().resetByTupleOffset(rTreeSplitKey.getLeftPageBuffer(), 0);
-
-        ((IRTreeFrame) rightFrame).adjustMBR(((RTreeNSMFrame) rightFrame).getTuples(), cmp);
-        rTreeTupleWriterRightFrame.writeTupleFields(((RTreeNSMFrame) rightFrame).getTuples(), 0,
-                rTreeSplitKey.getRightPageBuffer(), 0);
-        rTreeSplitKey.getRightTuple().resetByTupleOffset(rTreeSplitKey.getRightPageBuffer(), 0);
-
-        tupleEntries1.clear();
-        tupleEntries2.clear();
-        return 0;
-    }
-
-    private int getChildPointerOff(ITupleReference tuple, MultiComparator cmp) {
-        return tuple.getFieldStart(cmp.getKeyFieldCount() - 1) + tuple.getFieldLength(cmp.getKeyFieldCount() - 1);
-    }
-
-    @Override
-    public void insert(ITupleReference tuple, MultiComparator cmp, int tupleIndex) throws Exception {
-        frameTuple.setFieldCount(cmp.getKeyFieldCount());
+    public void insert(ITupleReference tuple, int tupleIndex) {
+        frameTuple.setFieldCount(tuple.getFieldCount());
         slotManager.insertSlot(-1, buf.getInt(freeSpaceOff));
         int freeSpace = buf.getInt(freeSpaceOff);
-        int bytesWritten = tupleWriter.writeTupleFields(tuple, 0, cmp.getKeyFieldCount(), buf, freeSpace);
-        System.arraycopy(tuple.getFieldData(cmp.getKeyFieldCount() - 1), getChildPointerOff(tuple, cmp), buf.array(),
+        int bytesWritten = tupleWriter.writeTupleFields(tuple, 0, tuple.getFieldCount(), buf.array(), freeSpace);
+        System.arraycopy(tuple.getFieldData(tuple.getFieldCount() - 1), getChildPointerOff(tuple), buf.array(),
                 freeSpace + bytesWritten, childPtrSize);
         int tupleSize = bytesWritten + childPtrSize;
 
@@ -476,7 +310,7 @@ public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteri
     }
 
     @Override
-    public void delete(int tupleIndex, MultiComparator cmp) throws Exception {
+    public void delete(int tupleIndex, MultiComparator cmp) {
         frameTuple.setFieldCount(cmp.getKeyFieldCount());
         int slotOff = slotManager.getSlotOff(tupleIndex);
 
@@ -534,9 +368,9 @@ public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteri
                         tuple1.getFieldLength(i), tupleToBeInserted.getFieldData(i),
                         tupleToBeInserted.getFieldStart(i), tupleToBeInserted.getFieldLength(i));
                 if (c < 0) {
-                    pLow1 = DoubleSerializerDeserializer.getDouble(tuple1.getFieldData(i), tuple1.getFieldStart(i));
+                    pLow1 = keyValueProviders[i].getValue(tuple1.getFieldData(i), tuple1.getFieldStart(i));
                 } else {
-                    pLow1 = DoubleSerializerDeserializer.getDouble(tupleToBeInserted.getFieldData(i),
+                    pLow1 = keyValueProviders[i].getValue(tupleToBeInserted.getFieldData(i),
                             tupleToBeInserted.getFieldStart(i));
                 }
 
@@ -544,18 +378,18 @@ public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteri
                         tuple1.getFieldLength(j), tupleToBeInserted.getFieldData(j),
                         tupleToBeInserted.getFieldStart(j), tupleToBeInserted.getFieldLength(j));
                 if (c > 0) {
-                    pHigh1 = DoubleSerializerDeserializer.getDouble(tuple1.getFieldData(j), tuple1.getFieldStart(j));
+                    pHigh1 = keyValueProviders[j].getValue(tuple1.getFieldData(j), tuple1.getFieldStart(j));
                 } else {
-                    pHigh1 = DoubleSerializerDeserializer.getDouble(tupleToBeInserted.getFieldData(j),
+                    pHigh1 = keyValueProviders[j].getValue(tupleToBeInserted.getFieldData(j),
                             tupleToBeInserted.getFieldStart(j));
                 }
             } else {
-                pLow1 = DoubleSerializerDeserializer.getDouble(tuple1.getFieldData(i), tuple1.getFieldStart(i));
-                pHigh1 = DoubleSerializerDeserializer.getDouble(tuple1.getFieldData(j), tuple1.getFieldStart(j));
+                pLow1 = keyValueProviders[i].getValue(tuple1.getFieldData(i), tuple1.getFieldStart(i));
+                pHigh1 = keyValueProviders[j].getValue(tuple1.getFieldData(j), tuple1.getFieldStart(j));
             }
 
-            double pLow2 = DoubleSerializerDeserializer.getDouble(tuple2.getFieldData(i), tuple2.getFieldStart(i));
-            double pHigh2 = DoubleSerializerDeserializer.getDouble(tuple2.getFieldData(j), tuple2.getFieldStart(j));
+            double pLow2 = keyValueProviders[i].getValue(tuple2.getFieldData(i), tuple2.getFieldStart(i));
+            double pHigh2 = keyValueProviders[j].getValue(tuple2.getFieldData(j), tuple2.getFieldStart(j));
 
             if (pLow1 > pHigh2 || pHigh1 < pLow2) {
                 return 0.0;
@@ -580,9 +414,9 @@ public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteri
                     tuple.getFieldLength(i), tupleToBeInserted.getFieldData(i), tupleToBeInserted.getFieldStart(i),
                     tupleToBeInserted.getFieldLength(i));
             if (c < 0) {
-                pLow = DoubleSerializerDeserializer.getDouble(tuple.getFieldData(i), tuple.getFieldStart(i));
+                pLow = keyValueProviders[i].getValue(tuple.getFieldData(i), tuple.getFieldStart(i));
             } else {
-                pLow = DoubleSerializerDeserializer.getDouble(tupleToBeInserted.getFieldData(i),
+                pLow = keyValueProviders[i].getValue(tupleToBeInserted.getFieldData(i),
                         tupleToBeInserted.getFieldStart(i));
             }
 
@@ -590,9 +424,9 @@ public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteri
                     tupleToBeInserted.getFieldData(j), tupleToBeInserted.getFieldStart(j),
                     tupleToBeInserted.getFieldLength(j));
             if (c > 0) {
-                pHigh = DoubleSerializerDeserializer.getDouble(tuple.getFieldData(j), tuple.getFieldStart(j));
+                pHigh = keyValueProviders[j].getValue(tuple.getFieldData(j), tuple.getFieldStart(j));
             } else {
-                pHigh = DoubleSerializerDeserializer.getDouble(tupleToBeInserted.getFieldData(j),
+                pHigh = keyValueProviders[j].getValue(tupleToBeInserted.getFieldData(j),
                         tupleToBeInserted.getFieldStart(j));
             }
             areaAfterEnlarge *= pHigh - pLow;
@@ -605,10 +439,31 @@ public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteri
         int maxFieldPos = cmp.getKeyFieldCount() / 2;
         for (int i = 0; i < maxFieldPos; i++) {
             int j = maxFieldPos + i;
-            area *= DoubleSerializerDeserializer.getDouble(tuple.getFieldData(j), tuple.getFieldStart(j))
-                    - DoubleSerializerDeserializer.getDouble(tuple.getFieldData(i), tuple.getFieldStart(i));
+            area *= keyValueProviders[j].getValue(tuple.getFieldData(j), tuple.getFieldStart(j))
+                    - keyValueProviders[i].getValue(tuple.getFieldData(i), tuple.getFieldStart(i));
         }
         return area;
+    }
+
+    @Override
+    public boolean checkEnlargement(ITupleReference tuple, MultiComparator cmp) {
+        int maxFieldPos = cmp.getKeyFieldCount() / 2;
+        for (int i = 0; i < maxFieldPos; i++) {
+            int j = maxFieldPos + i;
+            int c = cmp.getComparators()[i].compare(frameTuple.getFieldData(i), frameTuple.getFieldStart(i),
+                    frameTuple.getFieldLength(i), tuple.getFieldData(i), tuple.getFieldStart(i),
+                    tuple.getFieldLength(i));
+            if (c > 0) {
+                return true;
+            }
+            c = cmp.getComparators()[j].compare(frameTuple.getFieldData(j), frameTuple.getFieldStart(j),
+                    frameTuple.getFieldLength(j), tuple.getFieldData(j), tuple.getFieldStart(j),
+                    tuple.getFieldLength(j));
+            if (c < 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -633,13 +488,25 @@ public class RTreeNSMInteriorFrame extends RTreeNSMFrame implements IRTreeInteri
         }
     }
 
-    @Override
-    public void adjustMBR(ITreeIndexTupleReference[] tuples, MultiComparator cmp) {
-        for (int i = 0; i < tuples.length; i++) {
-            tuples[i].setFieldCount(cmp.getKeyFieldCount());
-            tuples[i].resetByTupleIndex(this, 0);
+    // For debugging.
+    public ArrayList<Integer> getChildren(MultiComparator cmp) {
+        ArrayList<Integer> ret = new ArrayList<Integer>();
+        frameTuple.setFieldCount(cmp.getKeyFieldCount());
+        int tupleCount = buf.getInt(tupleCountOff);
+        for (int i = 0; i < tupleCount; i++) {
+            int tupleOff = slotManager.getTupleOff(slotManager.getSlotOff(i));
+            frameTuple.resetByTupleOffset(buf, tupleOff);
+            int intVal = IntegerSerializerDeserializer.getInt(
+                    buf.array(),
+                    frameTuple.getFieldStart(frameTuple.getFieldCount() - 1)
+                            + frameTuple.getFieldLength(frameTuple.getFieldCount() - 1));
+            ret.add(intVal);
         }
+        return ret;
+    }
 
-        adjustMBRImpl(tuples, cmp);
+    @Override
+    public int getFieldCount() {
+        return keyValueProviders.length;
     }
 }

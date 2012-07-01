@@ -33,7 +33,6 @@ public class BTreeRangeSearchCursor implements ITreeIndexCursor {
 
     private int fileId = -1;
     private ICachedPage page = null;
-    private IBTreeLeafFrame frame = null;
     private IBufferCache bufferCache = null;
 
     private int tupleIndex = 0;
@@ -46,7 +45,9 @@ public class BTreeRangeSearchCursor implements ITreeIndexCursor {
     private FindTupleNoExactMatchPolicy lowKeyFtp;
     private FindTupleNoExactMatchPolicy highKeyFtp;
 
-    private ITreeIndexTupleReference frameTuple;
+    private final IBTreeLeafFrame frame;
+    private final ITreeIndexTupleReference frameTuple;
+    private final boolean exclusiveLatchNodes;
 
     private RangePredicate pred;
     private MultiComparator lowKeyCmp;
@@ -54,20 +55,25 @@ public class BTreeRangeSearchCursor implements ITreeIndexCursor {
     private ITupleReference lowKey;
     private ITupleReference highKey;
 
-    public BTreeRangeSearchCursor(IBTreeLeafFrame frame) {
+    public BTreeRangeSearchCursor(IBTreeLeafFrame frame, boolean exclusiveLatchNodes) {
         this.frame = frame;
         this.frameTuple = frame.createTupleReference();
+        this.exclusiveLatchNodes = exclusiveLatchNodes;
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() throws HyracksDataException {
         if (page != null) {
-            page.releaseReadLatch();
+            if (exclusiveLatchNodes) {
+                page.releaseWriteLatch();
+            } else {
+                page.releaseReadLatch();
+            }
             bufferCache.unpin(page);
         }
         tupleIndex = 0;
-		page = null;
-		pred = null;
+        page = null;
+        pred = null;
     }
 
     public ITupleReference getTuple() {
@@ -80,104 +86,91 @@ public class BTreeRangeSearchCursor implements ITreeIndexCursor {
     }
 
     private void fetchNextLeafPage(int nextLeafPage) throws HyracksDataException {
-        ICachedPage nextLeaf = bufferCache.pin(BufferedFileHandle.getDiskPageId(fileId, nextLeafPage), false);
-        nextLeaf.acquireReadLatch();
-
-        page.releaseReadLatch();
-        bufferCache.unpin(page);
-
-        page = nextLeaf;
-        frame.setPage(page);       
+        do {
+            ICachedPage nextLeaf = bufferCache.pin(BufferedFileHandle.getDiskPageId(fileId, nextLeafPage), false);
+            if (exclusiveLatchNodes) {
+                nextLeaf.acquireWriteLatch();
+                page.releaseWriteLatch();
+            } else {
+                nextLeaf.acquireReadLatch();
+                page.releaseReadLatch();
+            }
+            bufferCache.unpin(page);
+            page = nextLeaf;
+            frame.setPage(page);
+            nextLeafPage = frame.getNextLeaf();
+        } while (frame.getTupleCount() == 0 && nextLeafPage > 0);
     }
 
     @Override
-    public boolean hasNext() throws Exception {
-
-        if (pred.isForward()) {
-            if (tupleIndex >= frame.getTupleCount()) {
-                int nextLeafPage = frame.getNextLeaf();
-                if (nextLeafPage >= 0) {
-                    fetchNextLeafPage(nextLeafPage);
-                    tupleIndex = 0;
-
-                    stopTupleIndex = getHighKeyIndex();
-                    if (stopTupleIndex < 0)
-                        return false;
-                } else {
+    public boolean hasNext() throws HyracksDataException {
+        if (tupleIndex >= frame.getTupleCount()) {
+            int nextLeafPage = frame.getNextLeaf();
+            if (nextLeafPage >= 0) {
+                fetchNextLeafPage(nextLeafPage);
+                tupleIndex = 0;
+                stopTupleIndex = getHighKeyIndex();
+                if (stopTupleIndex < 0) {
                     return false;
                 }
-            }
-
-            frameTuple.resetByTupleIndex(frame, tupleIndex);
-            if (highKey == null || tupleIndex <= stopTupleIndex) {
-                return true;
-            } else
+            } else {
                 return false;
+            }
+        }
+
+        frameTuple.resetByTupleIndex(frame, tupleIndex);
+        if (highKey == null || tupleIndex <= stopTupleIndex) {
+            return true;
         } else {
-            if (tupleIndex < 0) {
-                int nextLeafPage = frame.getPrevLeaf();
-                if (nextLeafPage >= 0) {
-                    fetchNextLeafPage(nextLeafPage);
-                    tupleIndex = frame.getTupleCount() - 1;
-
-                    stopTupleIndex = getLowKeyIndex();
-                    if (stopTupleIndex >= frame.getTupleCount())
-                        return false;
-                } else {
-                    return false;
-                }
-            }
-
-            frameTuple.resetByTupleIndex(frame, tupleIndex);
-            if (lowKey == null || tupleIndex >= stopTupleIndex) {
-                return true;
-            } else
-                return false;
+            return false;
         }
     }
-
+    
     @Override
-    public void next() throws Exception {
+    public void next() throws HyracksDataException {
         tupleIndex += tupleIndexInc;
     }
 
-    private int getLowKeyIndex() {
-        int index;
-        if (lowKey == null)
-            index = 0;
-        else {
-            index = frame.findTupleIndex(lowKey, frameTuple, lowKeyCmp, lowKeyFtm, lowKeyFtp);
-            if (pred.lowKeyInclusive) {
-                index++;
-            } else {
-                if (index < 0)
-                    index = frame.getTupleCount();
+    private int getLowKeyIndex() throws HyracksDataException {
+        if (lowKey == null) {
+            return 0;
+        }
+        int index = frame.findTupleIndex(lowKey, frameTuple, lowKeyCmp, lowKeyFtm, lowKeyFtp);
+        if (pred.lowKeyInclusive) {
+            index++;
+        } else {
+            if (index < 0) {
+                index = frame.getTupleCount();
             }
         }
         return index;
     }
 
-    private int getHighKeyIndex() {
-        int index;
-        if (highKey == null)
-            index = frame.getTupleCount() - 1;
-        else {
-            index = frame.findTupleIndex(highKey, frameTuple, highKeyCmp, highKeyFtm, highKeyFtp);
-            if (pred.highKeyInclusive) {
-                if (index < 0)
-                    index = frame.getTupleCount() - 1;
-                else
-                    index--;
+    private int getHighKeyIndex() throws HyracksDataException {
+        if (highKey == null) {
+            return frame.getTupleCount() - 1;
+        }
+        int index = frame.findTupleIndex(highKey, frameTuple, highKeyCmp, highKeyFtm, highKeyFtp);
+        if (pred.highKeyInclusive) {
+            if (index < 0) {
+                index = frame.getTupleCount() - 1;
+            }
+            else {
+                index--;
             }
         }
         return index;
     }
 
     @Override
-    public void open(ICursorInitialState initialState, ISearchPredicate searchPred) throws Exception {
+    public void open(ICursorInitialState initialState, ISearchPredicate searchPred) throws HyracksDataException {
         // in case open is called multiple times without closing
         if (page != null) {
-            page.releaseReadLatch();
+            if (exclusiveLatchNodes) {
+                page.releaseWriteLatch();
+            } else {
+                page.releaseReadLatch();
+            }
             bufferCache.unpin(page);
         }
 
@@ -191,43 +184,33 @@ public class BTreeRangeSearchCursor implements ITreeIndexCursor {
         lowKey = pred.getLowKey();
         highKey = pred.getHighKey();
 
-        // field count must be identical for lowKeyCmp and highKeyCmp (key count
-        // may be different)
-        frameTuple.setFieldCount(lowKeyCmp.getFieldCount());
-
         // init
-        lowKeyFtm = FindTupleMode.FTM_EXCLUSIVE;
+        lowKeyFtm = FindTupleMode.EXCLUSIVE;
         if (pred.lowKeyInclusive) {
-            lowKeyFtp = FindTupleNoExactMatchPolicy.FTP_LOWER_KEY;
+            lowKeyFtp = FindTupleNoExactMatchPolicy.LOWER_KEY;
         } else {
-            lowKeyFtp = FindTupleNoExactMatchPolicy.FTP_HIGHER_KEY;
+            lowKeyFtp = FindTupleNoExactMatchPolicy.HIGHER_KEY;
         }
 
-        highKeyFtm = FindTupleMode.FTM_EXCLUSIVE;
+        highKeyFtm = FindTupleMode.EXCLUSIVE;
         if (pred.highKeyInclusive) {
-            highKeyFtp = FindTupleNoExactMatchPolicy.FTP_HIGHER_KEY;
+            highKeyFtp = FindTupleNoExactMatchPolicy.HIGHER_KEY;
         } else {
-            highKeyFtp = FindTupleNoExactMatchPolicy.FTP_LOWER_KEY;
+            highKeyFtp = FindTupleNoExactMatchPolicy.LOWER_KEY;
         }
-
-        if (pred.isForward()) {
-            tupleIndex = getLowKeyIndex();
-            stopTupleIndex = getHighKeyIndex();
-            tupleIndexInc = 1;
-        } else {
-            tupleIndex = getHighKeyIndex();
-            stopTupleIndex = getLowKeyIndex();
-            tupleIndexInc = -1;
-        }
+        
+        tupleIndex = getLowKeyIndex();
+        stopTupleIndex = getHighKeyIndex();
+        tupleIndexInc = 1;
     }
 
     @Override
     public void reset() {
         try {
-			close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}		
+            close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -238,5 +221,10 @@ public class BTreeRangeSearchCursor implements ITreeIndexCursor {
     @Override
     public void setFileId(int fileId) {
         this.fileId = fileId;
+    }
+
+    @Override
+    public boolean exclusiveLatchNodes() {
+        return exclusiveLatchNodes;
     }
 }

@@ -22,21 +22,17 @@ import edu.uci.ics.hyracks.api.dataflow.value.RecordDescriptor;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
 import edu.uci.ics.hyracks.dataflow.common.comm.io.FrameTupleAccessor;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractUnaryInputSinkOperatorNodePushable;
-import edu.uci.ics.hyracks.storage.am.common.dataflow.IndexHelperOpenMode;
+import edu.uci.ics.hyracks.storage.am.btree.impls.BTree;
 import edu.uci.ics.hyracks.storage.am.common.dataflow.PermutingFrameTupleReference;
-import edu.uci.ics.hyracks.storage.am.common.dataflow.TreeIndexOpHelper;
-import edu.uci.ics.hyracks.storage.am.invertedindex.api.IInvertedListBuilder;
+import edu.uci.ics.hyracks.storage.am.common.dataflow.TreeIndexDataflowHelper;
 import edu.uci.ics.hyracks.storage.am.invertedindex.impls.InvertedIndex;
+import edu.uci.ics.hyracks.storage.am.invertedindex.impls.InvertedIndex.InvertedIndexBulkLoadContext;
 
 public class InvertedIndexBulkLoadOperatorNodePushable extends AbstractUnaryInputSinkOperatorNodePushable {
-    private final TreeIndexOpHelper treeIndexOpHelper;
-    private float btreeFillFactor;
-
-    private final InvertedIndexOpHelper invIndexOpHelper;
-    protected final IInvertedListBuilder invListBuilder;
-    private InvertedIndex.BulkLoadContext bulkLoadCtx;
-
-    private final IHyracksTaskContext ctx;
+    private final TreeIndexDataflowHelper btreeDataflowHelper;
+    private final InvertedIndexDataflowHelper invIndexDataflowHelper;
+    private InvertedIndex invIndex;
+    private InvertedIndex.InvertedIndexBulkLoadContext bulkLoadCtx;
 
     private FrameTupleAccessor accessor;
     private PermutingFrameTupleReference tuple = new PermutingFrameTupleReference();
@@ -44,45 +40,47 @@ public class InvertedIndexBulkLoadOperatorNodePushable extends AbstractUnaryInpu
     private IRecordDescriptorProvider recordDescProvider;
 
     public InvertedIndexBulkLoadOperatorNodePushable(AbstractInvertedIndexOperatorDescriptor opDesc,
-            IHyracksTaskContext ctx, int partition, int[] fieldPermutation, float btreeFillFactor,
-            IInvertedListBuilder invListBuilder, IRecordDescriptorProvider recordDescProvider) {
-        treeIndexOpHelper = opDesc.getTreeIndexOpHelperFactory().createTreeIndexOpHelper(opDesc, ctx, partition,
-                IndexHelperOpenMode.CREATE);
-        invIndexOpHelper = new InvertedIndexOpHelper(opDesc, ctx, partition, IndexHelperOpenMode.CREATE);
-        this.btreeFillFactor = btreeFillFactor;
+            IHyracksTaskContext ctx, int partition, int[] fieldPermutation, IRecordDescriptorProvider recordDescProvider) {
+        btreeDataflowHelper = (TreeIndexDataflowHelper) opDesc.getIndexDataflowHelperFactory()
+                .createIndexDataflowHelper(opDesc, ctx, partition);
+        invIndexDataflowHelper = new InvertedIndexDataflowHelper(btreeDataflowHelper, opDesc, ctx, partition);
         this.recordDescProvider = recordDescProvider;
-        this.ctx = ctx;
-        this.invListBuilder = invListBuilder;
         tuple.setFieldPermutation(fieldPermutation);
     }
 
     @Override
     public void open() throws HyracksDataException {
-        AbstractInvertedIndexOperatorDescriptor opDesc = (AbstractInvertedIndexOperatorDescriptor) treeIndexOpHelper
+        AbstractInvertedIndexOperatorDescriptor opDesc = (AbstractInvertedIndexOperatorDescriptor) btreeDataflowHelper
                 .getOperatorDescriptor();
         RecordDescriptor recDesc = recordDescProvider.getInputRecordDescriptor(opDesc.getOperatorId(), 0);
-        accessor = new FrameTupleAccessor(treeIndexOpHelper.getHyracksTaskContext().getFrameSize(), recDesc);
+        accessor = new FrameTupleAccessor(btreeDataflowHelper.getHyracksTaskContext().getFrameSize(), recDesc);
 
-        // btree
+        // BTree.
         try {
-            treeIndexOpHelper.init();
-            treeIndexOpHelper.getTreeIndex().open(treeIndexOpHelper.getIndexFileId());
+            btreeDataflowHelper.init(false);
         } catch (Exception e) {
-            // cleanup in case of failure
-            treeIndexOpHelper.deinit();
-            throw new HyracksDataException(e);
+            // Cleanup in case of failure.
+            btreeDataflowHelper.deinit();
+            if (e instanceof HyracksDataException) {
+                throw (HyracksDataException) e;
+            } else {
+                throw new HyracksDataException(e);
+            }
         }
 
-        // inverted index
+        // Inverted Index.
         try {
-            invIndexOpHelper.init();
-            invIndexOpHelper.getInvIndex().open(invIndexOpHelper.getInvIndexFileId());
-            bulkLoadCtx = invIndexOpHelper.getInvIndex().beginBulkLoad(invListBuilder, ctx.getFrameSize(),
-                    btreeFillFactor);
+            invIndexDataflowHelper.init(false);
+            invIndex = (InvertedIndex) invIndexDataflowHelper.getIndex();
+            bulkLoadCtx = (InvertedIndexBulkLoadContext) invIndex.beginBulkLoad(BTree.DEFAULT_FILL_FACTOR);
         } catch (Exception e) {
-            // cleanup in case of failure
-            invIndexOpHelper.deinit();
-            throw new HyracksDataException(e);
+            // Cleanup in case of failure.
+            invIndexDataflowHelper.deinit();
+            if (e instanceof HyracksDataException) {
+                throw (HyracksDataException) e;
+            } else {
+                throw new HyracksDataException(e);
+            }
         }
     }
 
@@ -92,20 +90,27 @@ public class InvertedIndexBulkLoadOperatorNodePushable extends AbstractUnaryInpu
         int tupleCount = accessor.getTupleCount();
         for (int i = 0; i < tupleCount; i++) {
             tuple.reset(accessor, i);
-            invIndexOpHelper.getInvIndex().bulkLoadAddTuple(bulkLoadCtx, tuple);
+            invIndex.bulkLoadAddTuple(tuple, bulkLoadCtx);
         }
     }
 
     @Override
     public void close() throws HyracksDataException {
         try {
-            invIndexOpHelper.getInvIndex().endBulkLoad(bulkLoadCtx);
+            invIndex.endBulkLoad(bulkLoadCtx);
+        } catch (Exception e) {
+            throw new HyracksDataException(e);
         } finally {
-            treeIndexOpHelper.deinit();
+            try {
+                btreeDataflowHelper.deinit();
+            } finally {
+                invIndexDataflowHelper.deinit();
+            }
         }
     }
 
     @Override
-    public void flush() throws HyracksDataException {
+    public void fail() throws HyracksDataException {
+        writer.fail();
     }
 }

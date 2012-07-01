@@ -19,8 +19,7 @@ import edu.uci.ics.hyracks.api.dataflow.IOpenableDataWriter;
 import edu.uci.ics.hyracks.api.dataflow.IOperatorNodePushable;
 import edu.uci.ics.hyracks.api.dataflow.value.IRecordDescriptorProvider;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
-import edu.uci.ics.hyracks.api.job.IOperatorEnvironment;
-import edu.uci.ics.hyracks.api.job.JobSpecification;
+import edu.uci.ics.hyracks.api.job.IOperatorDescriptorRegistry;
 import edu.uci.ics.hyracks.dataflow.std.base.AbstractSingleActivityOperatorDescriptor;
 import edu.uci.ics.hyracks.dataflow.std.base.IOpenableDataWriterOperator;
 import edu.uci.ics.hyracks.dataflow.std.util.DeserializedOperatorNodePushable;
@@ -55,6 +54,10 @@ public abstract class AbstractFileWriteOperatorDescriptor extends AbstractSingle
         }
 
         @Override
+        public void fail() throws HyracksDataException {
+        }
+
+        @Override
         public void writeData(Object[] data) throws HyracksDataException {
             try {
                 writer.write(data);
@@ -77,7 +80,7 @@ public abstract class AbstractFileWriteOperatorDescriptor extends AbstractSingle
         this.splits = splits;
     }
 
-    public AbstractFileWriteOperatorDescriptor(JobSpecification spec, FileSplit[] splits) {
+    public AbstractFileWriteOperatorDescriptor(IOperatorDescriptorRegistry spec, FileSplit[] splits) {
         super(spec, 1, 0);
         this.splits = splits;
     }
@@ -85,7 +88,7 @@ public abstract class AbstractFileWriteOperatorDescriptor extends AbstractSingle
     protected abstract IRecordWriter createRecordWriter(FileSplit fileSplit, int index) throws Exception;
 
     @Override
-    public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx, IOperatorEnvironment env,
+    public IOperatorNodePushable createPushRuntime(IHyracksTaskContext ctx,
             IRecordDescriptorProvider recordDescProvider, int partition, int nPartitions) {
         return new DeserializedOperatorNodePushable(ctx, new FileWriteOperator(partition),
                 recordDescProvider.getInputRecordDescriptor(getOperatorId(), 0));

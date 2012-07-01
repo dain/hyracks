@@ -18,8 +18,8 @@ import java.nio.ByteBuffer;
 
 import edu.uci.ics.hyracks.api.context.IHyracksJobletContext;
 import edu.uci.ics.hyracks.api.context.IHyracksTaskContext;
-import edu.uci.ics.hyracks.api.dataflow.ActivityId;
 import edu.uci.ics.hyracks.api.dataflow.TaskAttemptId;
+import edu.uci.ics.hyracks.api.dataflow.state.IStateObject;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
 import edu.uci.ics.hyracks.api.exceptions.HyracksException;
 import edu.uci.ics.hyracks.api.io.FileReference;
@@ -91,19 +91,18 @@ public class TestTaskContext implements IHyracksTaskContext {
     }
 
     @Override
-    public Object lookupGlobalVariable(ActivityId producerActivity, int partition, String varName)
-            throws HyracksDataException {
+    public void setStateObject(IStateObject taskState) {
+
+    }
+
+    @Override
+    public IStateObject getStateObject(Object id) {
         return null;
     }
 
     @Override
-    public Object lookupLocalVariable(ActivityId producerActivity, int partition, String varName)
-            throws HyracksDataException {
-        return null;
-    }
-
-    @Override
-    public void setVariable(String name, Object value) throws HyracksDataException {
+    public void sendApplicationMessageToCC(byte[] message, String nodeId) throws Exception {
+        // TODO Auto-generated method stub
 
     }
 }

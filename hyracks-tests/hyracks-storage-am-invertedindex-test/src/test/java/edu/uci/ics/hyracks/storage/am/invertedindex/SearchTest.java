@@ -1,3 +1,18 @@
+/*
+ * Copyright 2009-2010 by The Regents of the University of California
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * you may obtain a copy of the License from
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package edu.uci.ics.hyracks.storage.am.invertedindex;
 
 import java.io.DataOutputStream;
@@ -5,22 +20,23 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import edu.uci.ics.hyracks.api.dataflow.value.IBinaryComparator;
 import edu.uci.ics.hyracks.dataflow.common.comm.io.ByteArrayAccessibleOutputStream;
 import edu.uci.ics.hyracks.dataflow.common.data.accessors.ITupleReference;
 import edu.uci.ics.hyracks.dataflow.common.data.marshalling.IntegerSerializerDeserializer;
 import edu.uci.ics.hyracks.dataflow.common.data.marshalling.UTF8StringSerializerDeserializer;
 import edu.uci.ics.hyracks.storage.am.btree.impls.BTree;
+import edu.uci.ics.hyracks.storage.am.common.api.IIndexBulkLoadContext;
+import edu.uci.ics.hyracks.storage.am.common.api.TreeIndexException;
 import edu.uci.ics.hyracks.storage.am.invertedindex.api.IInvertedIndexSearchModifier;
-import edu.uci.ics.hyracks.storage.am.invertedindex.api.IInvertedListBuilder;
-import edu.uci.ics.hyracks.storage.am.invertedindex.impls.FixedSizeElementInvertedListBuilder;
-import edu.uci.ics.hyracks.storage.am.invertedindex.impls.InvertedIndex;
+import edu.uci.ics.hyracks.storage.am.invertedindex.impls.InvertedIndex.InvertedIndexAccessor;
+import edu.uci.ics.hyracks.storage.am.invertedindex.impls.InvertedIndexSearchPredicate;
 import edu.uci.ics.hyracks.storage.am.invertedindex.impls.OccurrenceThresholdPanicException;
-import edu.uci.ics.hyracks.storage.am.invertedindex.impls.SearchResultCursor;
-import edu.uci.ics.hyracks.storage.am.invertedindex.impls.TOccurrenceSearcher;
 import edu.uci.ics.hyracks.storage.am.invertedindex.searchmodifiers.ConjunctiveSearchModifier;
 import edu.uci.ics.hyracks.storage.am.invertedindex.searchmodifiers.EditDistanceSearchModifier;
 import edu.uci.ics.hyracks.storage.am.invertedindex.searchmodifiers.JaccardSearchModifier;
@@ -34,16 +50,22 @@ public class SearchTest extends AbstractInvIndexSearchTest {
 	protected List<String> firstNames = new ArrayList<String>();
 	protected List<String> lastNames = new ArrayList<String>();
 
-	@Before
-	public void start() throws Exception {
-		super.start();
+	protected IBinaryComparator[] btreeBinCmps;
+	
+	@Override
+	protected void setTokenizer() {
 		tokenFactory = new UTF8NGramTokenFactory();
 		tokenizer = new NGramUTF8StringBinaryTokenizer(3, false, true, false,
 				tokenFactory);
-		searcher = new TOccurrenceSearcher(taskCtx, invIndex, tokenizer);
-		resultCursor = new SearchResultCursor(
-				searcher.createResultFrameTupleAccessor(),
-				searcher.createResultTupleReference());
+	}
+	
+	@Before
+	public void start() throws Exception {
+		super.start();
+		btreeBinCmps = new IBinaryComparator[btreeCmpFactories.length];
+		for (int i = 0; i < btreeCmpFactories.length; i++) {
+			btreeBinCmps[i] = btreeCmpFactories[i].createBinaryComparator();
+		}
 		generateDataStrings();
 		loadData();
 	}
@@ -112,7 +134,7 @@ public class SearchTest extends AbstractInvIndexSearchTest {
 		}
 	}
 
-	public void loadData() throws IOException {
+	public void loadData() throws IOException, TreeIndexException {
 		List<TokenIdPair> pairs = new ArrayList<TokenIdPair>();
 		// generate pairs for subsequent sorting and bulk-loading
 		int id = 0;
@@ -121,38 +143,28 @@ public class SearchTest extends AbstractInvIndexSearchTest {
 			DataOutputStream dos = new DataOutputStream(baaos);
 			UTF8StringSerializerDeserializer.INSTANCE.serialize(s, dos);
 			tokenizer.reset(baaos.getByteArray(), 0, baaos.size());
-			int tokenCount = 0;
 			while (tokenizer.hasNext()) {
 				tokenizer.next();
 				IToken token = tokenizer.getToken();
 				pairs.add(new TokenIdPair(token, id));
-				++tokenCount;
 			}
 			++id;
 		}
 		Collections.sort(pairs);
 
 		// bulk load index
-		IInvertedListBuilder invListBuilder = new FixedSizeElementInvertedListBuilder(
-				invListTypeTraits);
-		InvertedIndex.BulkLoadContext ctx = invIndex.beginBulkLoad(
-				invListBuilder, HYRACKS_FRAME_SIZE, BTree.DEFAULT_FILL_FACTOR);
+		IIndexBulkLoadContext ctx = invIndex.beginBulkLoad(BTree.DEFAULT_FILL_FACTOR);
 
 		for (TokenIdPair t : pairs) {
 			tb.reset();
 			tb.addField(t.baaos.getByteArray(), 0,
 					t.baaos.getByteArray().length);
-			IntegerSerializerDeserializer.INSTANCE.serialize(t.id, dos);
+			IntegerSerializerDeserializer.INSTANCE.serialize(t.id, tb.getDataOutput());
 			tb.addFieldEndOffset();
-
-			appender.reset(frame, true);
-			appender.append(tb.getFieldEndOffsets(), tb.getByteArray(), 0,
-					tb.getSize());
-
-			tuple.reset(accessor, 0);
+			tuple.reset(tb.getFieldEndOffsets(), tb.getByteArray());
 
 			try {
-				invIndex.bulkLoadAddTuple(ctx, tuple);
+				invIndex.bulkLoadAddTuple(tuple, ctx);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -170,28 +182,34 @@ public class SearchTest extends AbstractInvIndexSearchTest {
 
 		rnd.setSeed(50);
 
+		InvertedIndexAccessor accessor = (InvertedIndexAccessor) invIndex.createAccessor();
+		InvertedIndexSearchPredicate searchPred = new InvertedIndexSearchPredicate(searchModifier);
+		
 		for (int i = 0; i < numQueries; i++) {
 
 			int queryIndex = Math.abs(rnd.nextInt() % dataStrings.size());
 			String queryString = dataStrings.get(queryIndex);
 
+			// Serialize query.
 			queryTb.reset();
 			UTF8StringSerializerDeserializer.INSTANCE.serialize(queryString,
-					queryDos);
+					queryTb.getDataOutput());
 			queryTb.addFieldEndOffset();
+			queryTuple.reset(queryTb.getFieldEndOffsets(), queryTb.getByteArray());
 
-			queryAppender.reset(frame, true);
-			queryAppender.append(queryTb.getFieldEndOffsets(),
-					queryTb.getByteArray(), 0, queryTb.getSize());
-			queryTuple.reset(queryAccessor, 0);
-
+			// Set query tuple in search predicate.
+			searchPred.setQueryTuple(queryTuple);
+			searchPred.setQueryFieldIndex(0);
+			
+			resultCursor = accessor.createSearchCursor();
+			
 			int repeats = 1;
 			double totalTime = 0;
 			for (int j = 0; j < repeats; j++) {
 				long timeStart = System.currentTimeMillis();
 				try {
-					searcher.reset();
-					searcher.search(resultCursor, queryTuple, 0, searchModifier);
+					resultCursor.reset();
+					accessor.search(resultCursor, searchPred);
 				} catch (OccurrenceThresholdPanicException e) {
 					// ignore panic queries
 				}
@@ -214,7 +232,9 @@ public class SearchTest extends AbstractInvIndexSearchTest {
 			}
 			// remove trailing newline
 			strBuilder.deleteCharAt(strBuilder.length() - 1);
-			LOGGER.info(strBuilder.toString());
+			if (LOGGER.isLoggable(Level.INFO)) {
+				LOGGER.info(strBuilder.toString());
+			}
 		}
 	}
 
@@ -238,15 +258,21 @@ public class SearchTest extends AbstractInvIndexSearchTest {
 	public void jaccardQueryTest() throws Exception {
 		JaccardSearchModifier searchModifier = new JaccardSearchModifier(1.0f);
 
-		LOGGER.info("JACCARD: " + 0.9f);
+		if (LOGGER.isLoggable(Level.INFO)) {
+			LOGGER.info("JACCARD: " + 0.9f);
+		}
 		searchModifier.setJaccThresh(0.9f);
 		runQueries(searchModifier, 5);
 
-		LOGGER.info("JACCARD: " + 0.8f);
+		if (LOGGER.isLoggable(Level.INFO)) {
+			LOGGER.info("JACCARD: " + 0.8f);
+		}
 		searchModifier.setJaccThresh(0.8f);
 		runQueries(searchModifier, 5);
 
-		LOGGER.info("JACCARD: " + 0.7f);
+		if (LOGGER.isLoggable(Level.INFO)) {
+			LOGGER.info("JACCARD: " + 0.7f);
+		}
 		searchModifier.setJaccThresh(0.7f);
 		runQueries(searchModifier, 5);
 	}
@@ -261,15 +287,21 @@ public class SearchTest extends AbstractInvIndexSearchTest {
 		EditDistanceSearchModifier searchModifier = new EditDistanceSearchModifier(
 				3, 0);
 
-		LOGGER.info("EDIT DISTANCE: " + 1);
+		if (LOGGER.isLoggable(Level.INFO)) {
+			LOGGER.info("EDIT DISTANCE: " + 1);
+		}
 		searchModifier.setEdThresh(1);
 		runQueries(searchModifier, 5);
 
-		LOGGER.info("EDIT DISTANCE: " + 2);
+		if (LOGGER.isLoggable(Level.INFO)) {
+			LOGGER.info("EDIT DISTANCE: " + 2);
+		}
 		searchModifier.setEdThresh(2);
 		runQueries(searchModifier, 5);
 
-		LOGGER.info("EDIT DISTANCE: " + 3);
+		if (LOGGER.isLoggable(Level.INFO)) {
+			LOGGER.info("EDIT DISTANCE: " + 3);
+		}
 		searchModifier.setEdThresh(3);
 		runQueries(searchModifier, 5);
 	}

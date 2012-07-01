@@ -21,10 +21,12 @@ import edu.uci.ics.hyracks.dataflow.common.data.accessors.ITupleReference;
 
 public interface ITreeIndexTupleWriter {
     public int writeTuple(ITupleReference tuple, ByteBuffer targetBuf, int targetOff);
+    
+    public int writeTuple(ITupleReference tuple, byte[] targetBuf, int targetOff);
 
     public int bytesRequired(ITupleReference tuple);
 
-    public int writeTupleFields(ITupleReference tuple, int startField, int numFields, ByteBuffer targetBuf,
+    public int writeTupleFields(ITupleReference tuple, int startField, int numFields, byte[] targetBuf,
             int targetOff);
 
     public int bytesRequired(ITupleReference tuple, int startField, int numFields);

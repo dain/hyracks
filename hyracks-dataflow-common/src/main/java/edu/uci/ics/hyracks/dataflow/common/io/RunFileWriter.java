@@ -18,15 +18,16 @@ import java.nio.ByteBuffer;
 
 import edu.uci.ics.hyracks.api.comm.IFrameWriter;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
-import edu.uci.ics.hyracks.api.io.FileHandle;
 import edu.uci.ics.hyracks.api.io.FileReference;
+import edu.uci.ics.hyracks.api.io.IFileHandle;
 import edu.uci.ics.hyracks.api.io.IIOManager;
 
 public class RunFileWriter implements IFrameWriter {
     private final FileReference file;
     private final IIOManager ioManager;
+    private boolean failed;
 
-    private FileHandle handle;
+    private IFileHandle handle;
     private long size;
 
     public RunFileWriter(FileReference file, IIOManager ioManager) {
@@ -39,6 +40,13 @@ public class RunFileWriter implements IFrameWriter {
         handle = ioManager.open(file, IIOManager.FileReadWriteMode.READ_WRITE,
                 IIOManager.FileSyncMode.METADATA_ASYNC_DATA_ASYNC);
         size = 0;
+        failed = false;
+    }
+
+    @Override
+    public void fail() throws HyracksDataException {
+        ioManager.close(handle);
+        failed = true;
     }
 
     @Override
@@ -48,7 +56,9 @@ public class RunFileWriter implements IFrameWriter {
 
     @Override
     public void close() throws HyracksDataException {
-        ioManager.close(handle);
+        if (!failed) {
+            ioManager.close(handle);
+        }
     }
 
     public FileReference getFileReference() {
@@ -59,11 +69,10 @@ public class RunFileWriter implements IFrameWriter {
         return size;
     }
 
-    @Override
-    public void flush() throws HyracksDataException {
-    }
-
-    public RunFileReader createReader() {
+    public RunFileReader createReader() throws HyracksDataException {
+        if (failed) {
+            throw new HyracksDataException("createReader() called on a failed RunFileWriter");
+        }
         return new RunFileReader(file, ioManager, size);
     }
 }
