@@ -192,5 +192,4 @@ public class PigletMetadataProvider implements IMetadataProvider<String, String>
     public IFunctionInfo lookupFunction(FunctionIdentifier fid) {
         return FN_MAP.get(fid);
     }
-
 }

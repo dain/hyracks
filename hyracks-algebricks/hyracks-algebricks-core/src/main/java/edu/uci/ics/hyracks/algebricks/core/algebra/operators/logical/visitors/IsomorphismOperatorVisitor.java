@@ -40,6 +40,7 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.DieOperator
 import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.DistinctOperator;
 import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.EmptyTupleSourceOperator;
 import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.ExchangeOperator;
+import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.ExtensionOperator;
 import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.GroupByOperator;
 import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.IndexInsertDeleteOperator;
 import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.InnerJoinOperator;
@@ -104,6 +105,14 @@ public class IsomorphismOperatorVisitor implements ILogicalOperatorVisitor<Boole
             throws AlgebricksException {
         AbstractLogicalOperator aop = (AbstractLogicalOperator) copyAndSubstituteVar(op, arg);
         if (aop.getOperatorTag() != LogicalOperatorTag.EMPTYTUPLESOURCE)
+            return Boolean.FALSE;
+        return Boolean.TRUE;
+    }
+
+    @Override
+    public Boolean visitExtensionOperator(ExtensionOperator op, ILogicalOperator arg) throws AlgebricksException {
+        ExtensionOperator aop = (ExtensionOperator) copyAndSubstituteVar(op, arg);
+        if (aop.getOperatorTag() != LogicalOperatorTag.EXTENSION_OPERATOR)
             return Boolean.FALSE;
         return Boolean.TRUE;
     }
@@ -805,6 +814,11 @@ public class IsomorphismOperatorVisitor implements ILogicalOperatorVisitor<Boole
                 newOrdersAndExprs.add(new Pair<IOrder, Mutable<ILogicalExpression>>(pair.first,
                         deepCopyExpressionRef(pair.second)));
             return newOrdersAndExprs;
+        }
+
+        @Override
+        public ILogicalOperator visitExtensionOperator(ExtensionOperator op, Void arg) throws AlgebricksException {
+            return new ExtensionOperator(op.getNewInstanceOfDelegateOperator());
         }
     }
 
