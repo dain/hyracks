@@ -63,10 +63,10 @@ public abstract class AbstractRuleController {
 
     private void printRuleApplication(IAlgebraicRewriteRule rule, Mutable<ILogicalOperator> opRef)
             throws AlgebricksException {
-        AlgebricksConfig.ALGEBRICKS_LOGGER.info(">>>> Rule " + rule.getClass() + " fired.\n");
+        AlgebricksConfig.ALGEBRICKS_LOGGER.fine(">>>> Rule " + rule.getClass() + " fired.\n");
         StringBuilder sb = new StringBuilder();
         PlanPrettyPrinter.printOperator((AbstractLogicalOperator) opRef.getValue(), sb, pvisitor, 0);
-        AlgebricksConfig.ALGEBRICKS_LOGGER.info(sb.toString());
+        AlgebricksConfig.ALGEBRICKS_LOGGER.fine(sb.toString());
     }
 
     protected boolean rewriteOperatorRef(Mutable<ILogicalOperator> opRef, IAlgebraicRewriteRule rule,
