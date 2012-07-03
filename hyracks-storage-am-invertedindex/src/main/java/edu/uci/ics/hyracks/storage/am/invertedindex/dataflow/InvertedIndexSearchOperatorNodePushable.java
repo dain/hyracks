@@ -71,7 +71,7 @@ public class InvertedIndexSearchOperatorNodePushable extends AbstractUnaryInputU
 
     @Override
     public void open() throws HyracksDataException {
-        RecordDescriptor recDesc = recordDescProvider.getInputRecordDescriptor(opDesc.getOperatorId(), 0);
+        RecordDescriptor recDesc = recordDescProvider.getInputRecordDescriptor(opDesc.getActivityId(), 0);
         accessor = new FrameTupleAccessor(btreeDataflowHelper.getHyracksTaskContext().getFrameSize(), recDesc);
         tuple = new FrameTupleReference();
         // BTree.

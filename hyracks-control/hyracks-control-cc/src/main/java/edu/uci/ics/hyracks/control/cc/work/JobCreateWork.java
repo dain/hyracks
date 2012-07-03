@@ -15,7 +15,12 @@
 package edu.uci.ics.hyracks.control.cc.work;
 
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Set;
 
+import edu.uci.ics.hyracks.api.constraints.Constraint;
+import edu.uci.ics.hyracks.api.constraints.IConstraintAcceptor;
+import edu.uci.ics.hyracks.api.dataflow.IConnectorDescriptor;
 import edu.uci.ics.hyracks.api.dataflow.IOperatorDescriptor;
 import edu.uci.ics.hyracks.api.exceptions.HyracksException;
 import edu.uci.ics.hyracks.api.job.JobActivityGraph;
@@ -25,6 +30,7 @@ import edu.uci.ics.hyracks.api.job.JobSpecification;
 import edu.uci.ics.hyracks.api.job.JobStatus;
 import edu.uci.ics.hyracks.control.cc.ClusterControllerService;
 import edu.uci.ics.hyracks.control.cc.application.CCApplicationContext;
+import edu.uci.ics.hyracks.control.cc.job.IConnectorDescriptorVisitor;
 import edu.uci.ics.hyracks.control.cc.job.IOperatorDescriptorVisitor;
 import edu.uci.ics.hyracks.control.cc.job.JobActivityGraphBuilder;
 import edu.uci.ics.hyracks.control.cc.job.JobRun;
@@ -54,20 +60,26 @@ public class JobCreateWork extends SynchronizableWork {
     @Override
     protected void doRun() throws Exception {
         try {
-            CCApplicationContext appCtx = ccs.getApplicationMap().get(appName);
+            final CCApplicationContext appCtx = ccs.getApplicationMap().get(appName);
             if (appCtx == null) {
                 throw new HyracksException("No application with id " + appName + " found");
             }
             JobSpecification spec = appCtx.createJobSpecification(jobSpec);
 
-            final JobActivityGraphBuilder builder = new JobActivityGraphBuilder();
-            builder.init(appName, spec, jobFlags);
+            final JobActivityGraphBuilder builder = new JobActivityGraphBuilder(appName, spec, jobFlags);
+            PlanUtils.visit(spec, new IConnectorDescriptorVisitor() {
+                @Override
+                public void visit(IConnectorDescriptor conn) throws HyracksException {
+                    builder.addConnector(conn);
+                }
+            });
             PlanUtils.visit(spec, new IOperatorDescriptorVisitor() {
                 @Override
                 public void visit(IOperatorDescriptor op) {
                     op.contributeActivities(builder);
                 }
             });
+            builder.finish();
             final JobActivityGraph jag = builder.getActivityGraph();
 
             JobRun run = new JobRun(jobId, jag);
@@ -75,7 +87,28 @@ public class JobCreateWork extends SynchronizableWork {
             run.setStatus(JobStatus.INITIALIZED, null);
 
             ccs.getActiveRunMap().put(jobId, run);
-            JobScheduler jrs = new JobScheduler(ccs, run);
+            final Set<Constraint> contributedConstraints = new HashSet<Constraint>();
+            final IConstraintAcceptor acceptor = new IConstraintAcceptor() {
+                @Override
+                public void addConstraint(Constraint constraint) {
+                    contributedConstraints.add(constraint);
+                }
+            };
+            PlanUtils.visit(spec, new IOperatorDescriptorVisitor() {
+                @Override
+                public void visit(IOperatorDescriptor op) {
+                    op.contributeSchedulingConstraints(acceptor, jag, appCtx);
+                }
+            });
+            PlanUtils.visit(spec, new IConnectorDescriptorVisitor() {
+                @Override
+                public void visit(IConnectorDescriptor conn) {
+                    conn.contributeSchedulingConstraints(acceptor, jag, appCtx);
+                }
+            });
+            contributedConstraints.addAll(spec.getUserConstraints());
+
+            JobScheduler jrs = new JobScheduler(ccs, run, contributedConstraints);
             run.setScheduler(jrs);
             appCtx.notifyJobCreation(jobId, spec);
             callback.setValue(jobId);
