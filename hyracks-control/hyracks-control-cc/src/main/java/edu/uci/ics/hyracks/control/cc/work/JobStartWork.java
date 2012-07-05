@@ -23,6 +23,7 @@ import edu.uci.ics.hyracks.api.constraints.IConstraintAcceptor;
 import edu.uci.ics.hyracks.api.dataflow.IConnectorDescriptor;
 import edu.uci.ics.hyracks.api.dataflow.IOperatorDescriptor;
 import edu.uci.ics.hyracks.api.exceptions.HyracksException;
+import edu.uci.ics.hyracks.api.job.ActivityClusterGraph;
 import edu.uci.ics.hyracks.api.job.JobActivityGraph;
 import edu.uci.ics.hyracks.api.job.JobFlag;
 import edu.uci.ics.hyracks.api.job.JobId;
@@ -35,6 +36,7 @@ import edu.uci.ics.hyracks.control.cc.job.IOperatorDescriptorVisitor;
 import edu.uci.ics.hyracks.control.cc.job.JobActivityGraphBuilder;
 import edu.uci.ics.hyracks.control.cc.job.JobRun;
 import edu.uci.ics.hyracks.control.cc.job.PlanUtils;
+import edu.uci.ics.hyracks.control.cc.scheduler.ActivityClusterGraphBuilder;
 import edu.uci.ics.hyracks.control.cc.scheduler.JobScheduler;
 import edu.uci.ics.hyracks.control.common.work.IResultCallback;
 import edu.uci.ics.hyracks.control.common.work.SynchronizableWork;
@@ -66,7 +68,7 @@ public class JobStartWork extends SynchronizableWork {
             }
             JobSpecification spec = appCtx.createJobSpecification(jobSpec);
 
-            final JobActivityGraphBuilder builder = new JobActivityGraphBuilder(appName, spec, jobFlags);
+            final JobActivityGraphBuilder builder = new JobActivityGraphBuilder(spec, jobFlags);
             PlanUtils.visit(spec, new IConnectorDescriptorVisitor() {
                 @Override
                 public void visit(IConnectorDescriptor conn) throws HyracksException {
@@ -81,8 +83,13 @@ public class JobStartWork extends SynchronizableWork {
             });
             builder.finish();
             final JobActivityGraph jag = builder.getActivityGraph();
+            ActivityClusterGraphBuilder acgb = new ActivityClusterGraphBuilder();
 
-            JobRun run = new JobRun(jobId, jag);
+            final ActivityClusterGraph acg = acgb.inferActivityClusters(jobId, jag);
+            acg.setMaxReattempts(spec.getMaxReattempts());
+            acg.setJobletEventListenerFactory(spec.getJobletEventListenerFactory());
+            acg.setGlobalJobDataFactory(spec.getGlobalJobDataFactory());
+            JobRun run = new JobRun(jobId, appName, acg, jobFlags);
 
             run.setStatus(JobStatus.INITIALIZED, null);
 
@@ -97,13 +104,14 @@ public class JobStartWork extends SynchronizableWork {
             PlanUtils.visit(spec, new IOperatorDescriptorVisitor() {
                 @Override
                 public void visit(IOperatorDescriptor op) {
-                    op.contributeSchedulingConstraints(acceptor, jag, appCtx);
+                    op.contributeSchedulingConstraints(acceptor, appCtx);
                 }
             });
             PlanUtils.visit(spec, new IConnectorDescriptorVisitor() {
                 @Override
                 public void visit(IConnectorDescriptor conn) {
-                    conn.contributeSchedulingConstraints(acceptor, jag, appCtx);
+                    conn.contributeSchedulingConstraints(acceptor, acg.getConnectorMap().get(conn.getConnectorId()),
+                            appCtx);
                 }
             });
             contributedConstraints.addAll(spec.getUserConstraints());
