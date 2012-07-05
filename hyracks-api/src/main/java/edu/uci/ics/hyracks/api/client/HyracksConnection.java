@@ -25,6 +25,7 @@ import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.FileEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 
+import edu.uci.ics.hyracks.api.client.impl.JobSpecificationActivityClusterGraphGeneratorFactory;
 import edu.uci.ics.hyracks.api.exceptions.HyracksException;
 import edu.uci.ics.hyracks.api.job.JobFlag;
 import edu.uci.ics.hyracks.api.job.JobId;
@@ -100,12 +101,14 @@ public final class HyracksConnection implements IHyracksClientConnection {
 
     @Override
     public JobId startJob(String appName, JobSpecification jobSpec) throws Exception {
-        return hci.startJob(appName, JavaSerializationUtils.serialize(jobSpec), EnumSet.noneOf(JobFlag.class));
+        return startJob(appName, jobSpec, EnumSet.noneOf(JobFlag.class));
     }
 
     @Override
     public JobId startJob(String appName, JobSpecification jobSpec, EnumSet<JobFlag> jobFlags) throws Exception {
-        return hci.startJob(appName, JavaSerializationUtils.serialize(jobSpec), jobFlags);
+        JobSpecificationActivityClusterGraphGeneratorFactory jsacggf = new JobSpecificationActivityClusterGraphGeneratorFactory(
+                jobSpec);
+        return hci.startJob(appName, JavaSerializationUtils.serialize(jsacggf), jobFlags);
     }
 
     @Override

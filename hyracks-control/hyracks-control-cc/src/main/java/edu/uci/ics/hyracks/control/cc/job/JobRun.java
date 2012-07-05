@@ -33,10 +33,12 @@ import edu.uci.ics.hyracks.api.exceptions.HyracksException;
 import edu.uci.ics.hyracks.api.job.ActivityCluster;
 import edu.uci.ics.hyracks.api.job.ActivityClusterGraph;
 import edu.uci.ics.hyracks.api.job.ActivityClusterId;
+import edu.uci.ics.hyracks.api.job.IActivityClusterGraphGenerator;
 import edu.uci.ics.hyracks.api.job.JobFlag;
 import edu.uci.ics.hyracks.api.job.JobId;
 import edu.uci.ics.hyracks.api.job.JobStatus;
 import edu.uci.ics.hyracks.api.partitions.PartitionId;
+import edu.uci.ics.hyracks.control.cc.ClusterControllerService;
 import edu.uci.ics.hyracks.control.cc.partitions.PartitionMatchMaker;
 import edu.uci.ics.hyracks.control.cc.scheduler.ActivityPartitionDetails;
 import edu.uci.ics.hyracks.control.cc.scheduler.JobScheduler;
@@ -47,7 +49,11 @@ public class JobRun implements IJobStatusConditionVariable {
 
     private final String applicationName;
 
+    private final IActivityClusterGraphGenerator acgg;
+
     private final ActivityClusterGraph acg;
+
+    private final JobScheduler scheduler;
 
     private final EnumSet<JobFlag> jobFlags;
 
@@ -63,8 +69,6 @@ public class JobRun implements IJobStatusConditionVariable {
 
     private final Map<ConnectorDescriptorId, IConnectorPolicy> connectorPolicyMap;
 
-    private JobScheduler js;
-
     private long createTime;
 
     private long startTime;
@@ -79,10 +83,13 @@ public class JobRun implements IJobStatusConditionVariable {
 
     private Exception pendingException;
 
-    public JobRun(JobId jobId, String applicationName, ActivityClusterGraph acg, EnumSet<JobFlag> jobFlags) {
+    public JobRun(ClusterControllerService ccs, JobId jobId, String applicationName,
+            IActivityClusterGraphGenerator acgg, EnumSet<JobFlag> jobFlags) {
         this.jobId = jobId;
         this.applicationName = applicationName;
-        this.acg = acg;
+        this.acgg = acgg;
+        this.acg = acgg.initialize();
+        this.scheduler = new JobScheduler(ccs, this, acgg.getConstraints());
         this.jobFlags = jobFlags;
         activityClusterPlanMap = new HashMap<ActivityClusterId, ActivityClusterPlan>();
         pmm = new PartitionMatchMaker();
@@ -189,12 +196,8 @@ public class JobRun implements IJobStatusConditionVariable {
         return profile;
     }
 
-    public void setScheduler(JobScheduler js) {
-        this.js = js;
-    }
-
     public JobScheduler getScheduler() {
-        return js;
+        return scheduler;
     }
 
     public Map<ConnectorDescriptorId, IConnectorPolicy> getConnectorPolicyMap() {

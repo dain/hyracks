@@ -17,9 +17,10 @@ package edu.uci.ics.hyracks.api.job;
 import java.io.Serializable;
 import java.util.EnumSet;
 
+import edu.uci.ics.hyracks.api.application.ICCApplicationContext;
 import edu.uci.ics.hyracks.api.exceptions.HyracksException;
 
 public interface IActivityClusterGraphGeneratorFactory extends Serializable {
     public IActivityClusterGraphGenerator createActivityClusterGraphGenerator(String appName, JobId jobId,
-            EnumSet<JobFlag> jobFlags) throws HyracksException;
+            ICCApplicationContext ccAppCtx, EnumSet<JobFlag> jobFlags) throws HyracksException;
 }

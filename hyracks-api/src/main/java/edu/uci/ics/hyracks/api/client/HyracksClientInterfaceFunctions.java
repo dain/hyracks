@@ -128,12 +128,12 @@ public class HyracksClientInterfaceFunctions {
         private static final long serialVersionUID = 1L;
 
         private final String appName;
-        private final byte[] jobSpec;
+        private final byte[] acggfBytes;
         private final EnumSet<JobFlag> jobFlags;
 
-        public StartJobFunction(String appName, byte[] jobSpec, EnumSet<JobFlag> jobFlags) {
+        public StartJobFunction(String appName, byte[] acggfBytes, EnumSet<JobFlag> jobFlags) {
             this.appName = appName;
-            this.jobSpec = jobSpec;
+            this.acggfBytes = acggfBytes;
             this.jobFlags = jobFlags;
         }
 
@@ -146,8 +146,8 @@ public class HyracksClientInterfaceFunctions {
             return appName;
         }
 
-        public byte[] getJobSpec() {
-            return jobSpec;
+        public byte[] getACGGFBytes() {
+            return acggfBytes;
         }
 
         public EnumSet<JobFlag> getJobFlags() {
