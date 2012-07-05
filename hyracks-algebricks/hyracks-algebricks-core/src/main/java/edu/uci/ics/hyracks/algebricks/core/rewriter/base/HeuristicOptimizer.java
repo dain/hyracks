@@ -57,18 +57,18 @@ public class HeuristicOptimizer {
             return;
         }
         if (AlgebricksConfig.DEBUG) {
-            AlgebricksConfig.ALGEBRICKS_LOGGER.info("Starting logical optimizations.\n");
+            AlgebricksConfig.ALGEBRICKS_LOGGER.fine("Starting logical optimizations.\n");
         }
 
         StringBuilder sb = new StringBuilder();
         PlanPrettyPrinter.printPlan(plan, sb, ppvisitor, 0);
-        AlgebricksConfig.ALGEBRICKS_LOGGER.info("Logical Plan:\n" + sb.toString());
+        AlgebricksConfig.ALGEBRICKS_LOGGER.fine("Logical Plan:\n" + sb.toString());
         runOptimizationSets(plan, logicalRewrites);
         computeSchemaBottomUpForPlan(plan);
         runPhysicalOptimizations(plan, physicalRewrites);
         StringBuilder sb2 = new StringBuilder();
         PlanPrettyPrinter.printPlan(plan, sb2, ppvisitor, 0);
-        AlgebricksConfig.ALGEBRICKS_LOGGER.info("Optimized Plan:\n" + sb2.toString());
+        AlgebricksConfig.ALGEBRICKS_LOGGER.fine("Optimized Plan:\n" + sb2.toString());
     }
 
     private void runOptimizationSets(ILogicalPlan plan,
