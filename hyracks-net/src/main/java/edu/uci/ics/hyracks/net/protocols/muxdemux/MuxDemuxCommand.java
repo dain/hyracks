@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 import edu.uci.ics.hyracks.net.exceptions.NetException;
 
 class MuxDemuxCommand {
-    static final int MAX_CHANNEL_ID = 0x7fffffff;
+    static final int MAX_CHANNEL_ID = Integer.MAX_VALUE - 1;
 
     static final int COMMAND_SIZE = 8;
 
