@@ -115,10 +115,8 @@ public class ExternalSortRunMerger {
                 while (runs.size() > maxMergeWidth) {
                     int generationSeparator = 0;
                     while (generationSeparator < runs.size() && runs.size() > maxMergeWidth) {
-                        int mergeWidth = Math.min(runs.size() - generationSeparator, maxMergeWidth);
-                        if (maxMergeWidth - runs.size() - 1 > 0) {
-                            mergeWidth = Math.min(mergeWidth, maxMergeWidth - runs.size() - 1);
-                        }
+                        int mergeWidth = Math.min(Math.min(runs.size() - generationSeparator, maxMergeWidth),
+                                runs.size() - maxMergeWidth + 1);
                         FileReference newRun = ctx.createManagedWorkspaceFile(ExternalSortRunMerger.class
                                 .getSimpleName());
                         IFrameWriter mergeResultWriter = new RunFileWriter(newRun, ctx.getIOManager());

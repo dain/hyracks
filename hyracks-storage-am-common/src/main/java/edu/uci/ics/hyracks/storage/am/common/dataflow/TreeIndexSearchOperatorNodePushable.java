@@ -58,7 +58,7 @@ public abstract class TreeIndexSearchOperatorNodePushable extends AbstractUnaryI
         treeIndexHelper = (TreeIndexDataflowHelper) opDesc.getIndexDataflowHelperFactory().createIndexDataflowHelper(
                 opDesc, ctx, partition);
         this.retainInput = treeIndexHelper.getOperatorDescriptor().getRetainInput();
-        inputRecDesc = recordDescProvider.getInputRecordDescriptor(opDesc.getOperatorId(), 0);
+        inputRecDesc = recordDescProvider.getInputRecordDescriptor(opDesc.getActivityId(), 0);
     }
 
     protected abstract ISearchPredicate createSearchPredicate();

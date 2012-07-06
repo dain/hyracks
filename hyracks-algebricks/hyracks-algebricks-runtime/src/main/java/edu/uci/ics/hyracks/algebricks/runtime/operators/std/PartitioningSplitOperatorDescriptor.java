@@ -52,7 +52,7 @@ public class PartitioningSplitOperatorDescriptor extends AbstractSingleActivityO
             private final ByteBuffer[] writeBuffers = new ByteBuffer[outputArity];
             private final ICopyEvaluator[] evals = new ICopyEvaluator[outputArity];
             private final ArrayBackedValueStorage evalBuf = new ArrayBackedValueStorage();
-            private final RecordDescriptor inOutRecDesc = recordDescProvider.getInputRecordDescriptor(getOperatorId(), 0);
+            private final RecordDescriptor inOutRecDesc = recordDescProvider.getInputRecordDescriptor(getActivityId(), 0);
             private final FrameTupleAccessor accessor = new FrameTupleAccessor(ctx.getFrameSize(), inOutRecDesc);
             private final FrameTupleReference frameTuple = new FrameTupleReference();
             
