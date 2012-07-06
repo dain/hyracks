@@ -44,7 +44,7 @@ import edu.uci.ics.hyracks.api.job.JobFlag;
 import edu.uci.ics.hyracks.api.job.JobId;
 import edu.uci.ics.hyracks.api.partitions.PartitionId;
 import edu.uci.ics.hyracks.control.common.job.TaskAttemptDescriptor;
-import edu.uci.ics.hyracks.control.common.work.SynchronizableWork;
+import edu.uci.ics.hyracks.control.common.work.AbstractWork;
 import edu.uci.ics.hyracks.control.nc.Joblet;
 import edu.uci.ics.hyracks.control.nc.NodeControllerService;
 import edu.uci.ics.hyracks.control.nc.Task;
@@ -55,7 +55,7 @@ import edu.uci.ics.hyracks.control.nc.partitions.PipelinedPartition;
 import edu.uci.ics.hyracks.control.nc.partitions.ReceiveSideMaterializingCollector;
 import edu.uci.ics.hyracks.control.nc.profiling.ProfilingPartitionWriterFactory;
 
-public class StartTasksWork extends SynchronizableWork {
+public class StartTasksWork extends AbstractWork {
     private static final Logger LOGGER = Logger.getLogger(StartTasksWork.class.getName());
 
     private final NodeControllerService ncs;
@@ -82,7 +82,7 @@ public class StartTasksWork extends SynchronizableWork {
     }
 
     @Override
-    protected void doRun() throws Exception {
+    public void run() {
         try {
             Map<String, NCApplicationContext> applications = ncs.getApplications();
             NCApplicationContext appCtx = applications.get(appName);
@@ -155,7 +155,7 @@ public class StartTasksWork extends SynchronizableWork {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            throw e;
+            throw new RuntimeException(e);
         }
     }
 
