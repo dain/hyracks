@@ -32,6 +32,7 @@ import edu.uci.ics.hyracks.api.job.JobFlag;
 import edu.uci.ics.hyracks.api.job.JobId;
 import edu.uci.ics.hyracks.api.job.JobSpecification;
 import edu.uci.ics.hyracks.api.job.JobStatus;
+import edu.uci.ics.hyracks.api.topology.ClusterTopology;
 import edu.uci.ics.hyracks.api.util.JavaSerializationUtils;
 import edu.uci.ics.hyracks.ipc.api.IIPCHandle;
 import edu.uci.ics.hyracks.ipc.api.RPCInterface;
@@ -125,5 +126,10 @@ public final class HyracksConnection implements IHyracksClientConnection {
     @Override
     public Map<String, NodeControllerInfo> getNodeControllerInfos() throws Exception {
         return hci.getNodeControllersInfo();
+    }
+
+    @Override
+    public ClusterTopology getClusterTopology() throws Exception {
+        return hci.getClusterTopology();
     }
 }

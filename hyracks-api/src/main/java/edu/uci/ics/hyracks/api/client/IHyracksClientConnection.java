@@ -23,6 +23,7 @@ import edu.uci.ics.hyracks.api.job.JobFlag;
 import edu.uci.ics.hyracks.api.job.JobId;
 import edu.uci.ics.hyracks.api.job.JobSpecification;
 import edu.uci.ics.hyracks.api.job.JobStatus;
+import edu.uci.ics.hyracks.api.topology.ClusterTopology;
 
 /**
  * Interface used by clients to communicate with the Hyracks Cluster Controller.
@@ -114,4 +115,12 @@ public interface IHyracksClientConnection {
      * @return Map of node name to node information.
      */
     public Map<String, NodeControllerInfo> getNodeControllerInfos() throws Exception;
+
+    /**
+     * Get the cluster topology
+     * 
+     * @return the cluster topology
+     * @throws Exception
+     */
+    public ClusterTopology getClusterTopology() throws Exception;
 }
