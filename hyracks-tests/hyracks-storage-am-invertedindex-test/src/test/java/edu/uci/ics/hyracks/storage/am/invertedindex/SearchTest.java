@@ -183,7 +183,7 @@ public class SearchTest extends AbstractInvIndexSearchTest {
 		rnd.setSeed(50);
 
 		InvertedIndexAccessor accessor = (InvertedIndexAccessor) invIndex.createAccessor();
-		InvertedIndexSearchPredicate searchPred = new InvertedIndexSearchPredicate(searchModifier);
+		InvertedIndexSearchPredicate searchPred = new InvertedIndexSearchPredicate(tokenizer, searchModifier);
 		
 		for (int i = 0; i < numQueries; i++) {
 
