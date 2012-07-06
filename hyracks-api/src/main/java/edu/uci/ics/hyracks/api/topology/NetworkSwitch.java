@@ -14,6 +14,7 @@
  */
 package edu.uci.ics.hyracks.api.topology;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -91,7 +92,9 @@ public class NetworkSwitch extends NetworkEndpoint {
         ((NetworkSwitch) endpoint).getPortList(path, stepIndex, portList);
     }
 
-    public static class Port {
+    public static class Port implements Serializable {
+        private static final long serialVersionUID = 1L;
+
         private final NetworkEndpoint endpoint;
 
         public Port(NetworkEndpoint endpoint) {
