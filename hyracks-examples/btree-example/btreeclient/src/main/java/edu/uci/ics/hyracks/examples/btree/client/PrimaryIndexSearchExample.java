@@ -143,7 +143,7 @@ public class PrimaryIndexSearchExample {
         IIndexDataflowHelperFactory dataflowHelperFactory = new BTreeDataflowHelperFactory();
         BTreeSearchOperatorDescriptor btreeSearchOp = new BTreeSearchOperatorDescriptor(spec, recDesc, storageManager,
                 indexRegistryProvider, btreeSplitProvider, typeTraits, comparatorFactories, lowKeyFields,
-                highKeyFields, true, true, dataflowHelperFactory, NoOpOperationCallbackProvider.INSTANCE);
+                highKeyFields, true, true, dataflowHelperFactory, false, NoOpOperationCallbackProvider.INSTANCE);
         JobHelper.createPartitionConstraint(spec, btreeSearchOp, splitNCs);
 
         // have each node print the results of its respective B-Tree
