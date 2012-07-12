@@ -14,7 +14,11 @@
  */
 package edu.uci.ics.hyracks.algebricks.core.algebra.functions;
 
-public final class FunctionIdentifier {
+import java.io.Serializable;
+
+public final class FunctionIdentifier implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     final private String namespace;
     final private String name;
     final private boolean isBuiltin;
