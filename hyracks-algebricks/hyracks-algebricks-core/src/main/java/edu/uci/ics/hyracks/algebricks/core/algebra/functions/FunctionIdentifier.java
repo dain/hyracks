@@ -19,10 +19,9 @@ import java.io.Serializable;
 public final class FunctionIdentifier implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    final private String namespace;
-    final private String name;
-    final private boolean isBuiltin;
-    final private int arity;
+    private final String namespace;
+    private final String name;
+    private final int arity;
 
     public final static int VARARGS = -1;
 
@@ -30,27 +29,14 @@ public final class FunctionIdentifier implements Serializable {
         this(namespace, name, VARARGS);
     }
 
-    public FunctionIdentifier(String namespace, String name, boolean isBuiltin) {
-        this(namespace, name, VARARGS, false);
-    }
-
     public FunctionIdentifier(String namespace, String name, int arity) {
-        this(namespace, name, arity, false);
-    }
-
-    public FunctionIdentifier(String namespace, String name, int arity, boolean isBuiltin) {
         this.namespace = namespace;
         this.name = name;
         this.arity = arity;
-        this.isBuiltin = isBuiltin;
     }
 
     public String getName() {
         return name;
-    }
-
-    public boolean isBuiltin() {
-        return isBuiltin;
     }
 
     @Override
