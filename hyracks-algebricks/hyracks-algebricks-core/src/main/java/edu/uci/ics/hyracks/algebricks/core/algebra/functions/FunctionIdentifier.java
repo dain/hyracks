@@ -26,11 +26,16 @@ public final class FunctionIdentifier implements Serializable {
 
     public final static int VARARGS = -1;
 
+    public FunctionIdentifier(String namespace, String name) {
+        this(namespace, name, VARARGS);
+    }
+
     public FunctionIdentifier(String namespace, String name, boolean isBuiltin) {
-        this.namespace = namespace;
-        this.name = name;
-        this.arity = VARARGS;
-        this.isBuiltin = isBuiltin;
+        this(namespace, name, VARARGS, false);
+    }
+
+    public FunctionIdentifier(String namespace, String name, int arity) {
+        this(namespace, name, arity, false);
     }
 
     public FunctionIdentifier(String namespace, String name, int arity, boolean isBuiltin) {
