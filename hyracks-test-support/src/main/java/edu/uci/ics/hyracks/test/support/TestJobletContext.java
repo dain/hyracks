@@ -29,11 +29,13 @@ import edu.uci.ics.hyracks.control.nc.io.IOManager;
 import edu.uci.ics.hyracks.control.nc.io.WorkspaceFileFactory;
 
 public class TestJobletContext implements IHyracksJobletContext {
+    private final int frameSize;
     private final INCApplicationContext appContext;
     private JobId jobId;
     private WorkspaceFileFactory fileFactory;
 
-    public TestJobletContext(INCApplicationContext appContext, JobId jobId) throws HyracksException {
+    public TestJobletContext(int frameSize, INCApplicationContext appContext, JobId jobId) throws HyracksException {
+        this.frameSize = frameSize;
         this.appContext = appContext;
         this.jobId = jobId;
         fileFactory = new WorkspaceFileFactory(this, (IOManager) getIOManager());
@@ -41,12 +43,12 @@ public class TestJobletContext implements IHyracksJobletContext {
 
     @Override
     public ByteBuffer allocateFrame() {
-        return appContext.getRootContext().allocateFrame();
+        return ByteBuffer.allocate(frameSize);
     }
 
     @Override
     public int getFrameSize() {
-        return appContext.getRootContext().getFrameSize();
+        return frameSize;
     }
 
     @Override

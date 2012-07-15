@@ -23,7 +23,7 @@ import java.util.logging.Logger;
 
 import edu.uci.ics.hyracks.api.channels.IInputChannel;
 import edu.uci.ics.hyracks.api.channels.IInputChannelMonitor;
-import edu.uci.ics.hyracks.api.context.IHyracksRootContext;
+import edu.uci.ics.hyracks.api.context.IHyracksJobletContext;
 import edu.uci.ics.hyracks.api.exceptions.HyracksDataException;
 import edu.uci.ics.hyracks.api.partitions.PartitionId;
 import edu.uci.ics.hyracks.net.buffers.IBufferAcceptor;
@@ -33,7 +33,7 @@ import edu.uci.ics.hyracks.net.protocols.muxdemux.ChannelControlBlock;
 public class NetworkInputChannel implements IInputChannel {
     private static final Logger LOGGER = Logger.getLogger(NetworkInputChannel.class.getName());
 
-    private IHyracksRootContext ctx;
+    private IHyracksJobletContext ctx;
 
     private final NetworkManager netManager;
 
@@ -51,7 +51,7 @@ public class NetworkInputChannel implements IInputChannel {
 
     private Object attachment;
 
-    public NetworkInputChannel(IHyracksRootContext ctx, NetworkManager netManager, SocketAddress remoteAddress,
+    public NetworkInputChannel(IHyracksJobletContext ctx, NetworkManager netManager, SocketAddress remoteAddress,
             PartitionId partitionId, int nBuffers) {
         this.ctx = ctx;
         this.netManager = netManager;
