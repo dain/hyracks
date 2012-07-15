@@ -41,17 +41,14 @@ public class TestJobletContext implements IHyracksJobletContext {
         fileFactory = new WorkspaceFileFactory(this, (IOManager) getIOManager());
     }
 
-    @Override
     public ByteBuffer allocateFrame() {
         return ByteBuffer.allocate(frameSize);
     }
 
-    @Override
     public int getFrameSize() {
         return frameSize;
     }
 
-    @Override
     public IIOManager getIOManager() {
         return appContext.getRootContext().getIOManager();
     }

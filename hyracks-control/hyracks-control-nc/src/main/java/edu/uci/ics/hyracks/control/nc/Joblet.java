@@ -204,18 +204,15 @@ public class Joblet implements IHyracksJobletContext, ICounterContext {
         });
     }
 
-    @Override
-    public ByteBuffer allocateFrame() {
+    ByteBuffer allocateFrame() {
         return ByteBuffer.allocate(getFrameSize());
     }
 
-    @Override
-    public int getFrameSize() {
+    int getFrameSize() {
         return frameSize;
     }
 
-    @Override
-    public IIOManager getIOManager() {
+    IIOManager getIOManager() {
         return appCtx.getRootContext().getIOManager();
     }
 
