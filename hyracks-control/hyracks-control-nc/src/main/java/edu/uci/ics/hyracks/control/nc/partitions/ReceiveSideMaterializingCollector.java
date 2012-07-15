@@ -123,7 +123,7 @@ public class ReceiveSideMaterializingCollector implements IPartitionCollector {
             IInputChannel channel = pc.getInputChannel();
             try {
                 channel.registerMonitor(this);
-                channel.open();
+                channel.open(ctx);
                 mpw.open();
                 while (true) {
                     if (nAvailableFrames.get() > 0) {
@@ -150,7 +150,7 @@ public class ReceiveSideMaterializingCollector implements IPartitionCollector {
                 mpw.close();
                 channel.close();
                 delegate.addPartitions(Collections.singleton(new PartitionChannel(pid,
-                        new MaterializedPartitionInputChannel(ctx, 1, pid, manager))));
+                        new MaterializedPartitionInputChannel(1, pid, manager))));
             } catch (HyracksException e) {
             }
         }

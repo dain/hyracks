@@ -27,6 +27,8 @@ import edu.uci.ics.hyracks.api.partitions.IPartition;
 import edu.uci.ics.hyracks.api.partitions.PartitionId;
 
 public class MaterializedPartitionInputChannel implements IInputChannel {
+    private final int nBuffers;
+
     private final Queue<ByteBuffer> emptyQueue;
 
     private final Queue<ByteBuffer> fullQueue;
@@ -41,12 +43,9 @@ public class MaterializedPartitionInputChannel implements IInputChannel {
 
     private Object attachment;
 
-    public MaterializedPartitionInputChannel(IHyracksTaskContext ctx, int nBuffers, PartitionId pid,
-            PartitionManager manager) {
+    public MaterializedPartitionInputChannel(int nBuffers, PartitionId pid, PartitionManager manager) {
+        this.nBuffers = nBuffers;
         this.emptyQueue = new ArrayDeque<ByteBuffer>(nBuffers);
-        for (int i = 0; i < nBuffers; ++i) {
-            emptyQueue.add(ctx.allocateFrame());
-        }
         fullQueue = new ArrayDeque<ByteBuffer>(nBuffers);
         this.pid = pid;
         this.manager = manager;
@@ -83,7 +82,10 @@ public class MaterializedPartitionInputChannel implements IInputChannel {
     }
 
     @Override
-    public void open() throws HyracksDataException {
+    public void open(IHyracksTaskContext ctx) throws HyracksDataException {
+        for (int i = 0; i < nBuffers; ++i) {
+            emptyQueue.add(ctx.allocateFrame());
+        }
         IPartition partition = manager.getPartition(pid);
         partition.writeTo(writer);
     }
