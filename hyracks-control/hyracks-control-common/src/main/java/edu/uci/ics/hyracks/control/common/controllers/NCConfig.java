@@ -55,6 +55,9 @@ public class NCConfig implements Serializable {
     @Option(name = "-net-thread-count", usage = "Number of threads to use for Network I/O (default: 1)")
     public int nNetThreads = 1;
 
+    @Option(name = "-max-memory", usage = "Maximum memory usable at this Node Controller in bytes (default: -1 auto)")
+    public int maxMemory = -1;
+
     public void toCommandLine(List<String> cList) {
         cList.add("-cc-host");
         cList.add(ccHost);
@@ -80,5 +83,7 @@ public class NCConfig implements Serializable {
         cList.add(dcacheClientPath);
         cList.add("-net-thread-count");
         cList.add(String.valueOf(nNetThreads));
+        cList.add("-max-memory");
+        cList.add(String.valueOf(maxMemory));
     }
 }

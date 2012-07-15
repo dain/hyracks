@@ -80,6 +80,8 @@ public class Joblet implements IHyracksJobletContext, ICounterContext {
 
     private final IJobletEventListener jobletEventListener;
 
+    private final int frameSize;
+
     private JobStatus cleanupStatus;
 
     private boolean cleanupPending;
@@ -108,6 +110,7 @@ public class Joblet implements IHyracksJobletContext, ICounterContext {
         }
         IGlobalJobDataFactory gjdf = acg.getGlobalJobDataFactory();
         globalJobData = gjdf != null ? gjdf.createGlobalJobData(this) : null;
+        frameSize = nodeController.getConfiguration().frameSize;
     }
 
     @Override
@@ -203,12 +206,12 @@ public class Joblet implements IHyracksJobletContext, ICounterContext {
 
     @Override
     public ByteBuffer allocateFrame() {
-        return appCtx.getRootContext().allocateFrame();
+        return ByteBuffer.allocate(getFrameSize());
     }
 
     @Override
     public int getFrameSize() {
-        return appCtx.getRootContext().getFrameSize();
+        return frameSize;
     }
 
     @Override

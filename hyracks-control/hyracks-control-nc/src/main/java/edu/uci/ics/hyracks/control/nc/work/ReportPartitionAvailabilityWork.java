@@ -46,7 +46,7 @@ public class ReportPartitionAvailabilityWork extends AbstractWork {
             Map<JobId, Joblet> jobletMap = ncs.getJobletMap();
             Joblet ji = jobletMap.get(pid.getJobId());
             if (ji != null) {
-                PartitionChannel channel = new PartitionChannel(pid, new NetworkInputChannel(ncs.getRootContext(),
+                PartitionChannel channel = new PartitionChannel(pid, new NetworkInputChannel(ji,
                         ncs.getNetworkManager(), new InetSocketAddress(InetAddress.getByAddress(networkAddress
                                 .getIpAddress()), networkAddress.getPort()), pid, 5));
                 ji.reportPartitionAvailability(channel);

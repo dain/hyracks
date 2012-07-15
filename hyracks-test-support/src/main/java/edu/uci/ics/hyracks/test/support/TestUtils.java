@@ -28,9 +28,9 @@ import edu.uci.ics.hyracks.api.job.JobId;
 public class TestUtils {
     public static IHyracksTaskContext create(int frameSize) {
         try {
-            IHyracksRootContext rootCtx = new TestRootContext(frameSize);
+            IHyracksRootContext rootCtx = new TestRootContext();
             INCApplicationContext appCtx = new TestNCApplicationContext(rootCtx, null);
-            IHyracksJobletContext jobletCtx = new TestJobletContext(appCtx, new JobId(0));
+            IHyracksJobletContext jobletCtx = new TestJobletContext(frameSize, appCtx, new JobId(0));
             TaskAttemptId tid = new TaskAttemptId(new TaskId(new ActivityId(new OperatorDescriptorId(0), 0), 0), 0);
             IHyracksTaskContext taskCtx = new TestTaskContext(jobletCtx, tid);
             return taskCtx;
