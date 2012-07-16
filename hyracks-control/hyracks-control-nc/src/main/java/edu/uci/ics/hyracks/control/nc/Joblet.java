@@ -91,6 +91,7 @@ public class Joblet implements IHyracksJobletContext, ICounterContext {
         this.nodeController = nodeController;
         this.appCtx = appCtx;
         this.jobId = jobId;
+        this.frameSize = acg.getFrameSize();
         this.acg = acg;
         partitionRequestMap = new HashMap<PartitionId, IPartitionCollector>();
         env = new OperatorEnvironmentImpl(nodeController.getId());
@@ -110,7 +111,6 @@ public class Joblet implements IHyracksJobletContext, ICounterContext {
         }
         IGlobalJobDataFactory gjdf = acg.getGlobalJobDataFactory();
         globalJobData = gjdf != null ? gjdf.createGlobalJobData(this) : null;
-        frameSize = nodeController.getConfiguration().frameSize;
     }
 
     @Override
