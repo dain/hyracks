@@ -37,9 +37,6 @@ public class NCConfig implements Serializable {
     @Option(name = "-data-ip-address", usage = "IP Address to bind data listener", required = true)
     public String dataIPAddress;
 
-    @Option(name = "-frame-size", usage = "Frame Size to use for data communication (default: 32768)")
-    public int frameSize = 32768;
-
     @Option(name = "-iodevices", usage = "Comma separated list of IO Device mount points (default: One device in default temp folder)", required = false)
     public String ioDevices = System.getProperty("java.io.tmpdir");
 
@@ -69,8 +66,6 @@ public class NCConfig implements Serializable {
         cList.add(nodeId);
         cList.add("-data-ip-address");
         cList.add(dataIPAddress);
-        cList.add("-frame-size");
-        cList.add(String.valueOf(frameSize));
         cList.add("-iodevices");
         cList.add(ioDevices);
         cList.add("-dcache-client-servers");
