@@ -166,19 +166,19 @@ public class SimpleUnnestToProductRule implements IAlgebraicRewriteRule {
             VariableUtilities.getUsedVariables(op, usedVars);
         }
         
-        int innerMatches = 0;
+        int outerMatches = 0;
         for (LogicalVariable usedVar : usedVars) {
             if (outerVars.contains(usedVar)) {
-                innerMatches++;
+                outerMatches++;
             }
         }
         
-        if (innerMatches == usedVars.size()) {
+        if (outerMatches == usedVars.size()) {
             // Definitely part of the outer.
             VariableUtilities.getProducedVariables(op, outerVars);
             outerOps.push(op);
             return true;
-        } else if (innerMatches == 0) {
+        } else if (outerMatches == 0) {
             // Sanity check that all used vars are indeed in the inner partition.
             if (!innerVars.containsAll(usedVars)) {
                 return false;
@@ -188,7 +188,7 @@ public class SimpleUnnestToProductRule implements IAlgebraicRewriteRule {
             innerOps.push(op);
             return true;
         } else {
-            // TODO: Some variables match the inner partition (and the others presumably match the outer,
+            // TODO: Some variables match the outer partition (and the others presumably match the inner,
             // otherwise there's a bigger problem).
             // Depending on the operator, we may be able to split it such that we create a viable partitioning.
             // For now just bail.
