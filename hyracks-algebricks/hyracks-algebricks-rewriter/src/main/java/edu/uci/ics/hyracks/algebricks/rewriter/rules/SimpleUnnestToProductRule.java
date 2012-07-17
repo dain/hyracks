@@ -55,7 +55,7 @@ public class SimpleUnnestToProductRule implements IAlgebraicRewriteRule {
         Mutable<ILogicalOperator> opRef2 = op.getInputs().get(0);
         AbstractLogicalOperator op2 = (AbstractLogicalOperator) opRef2.getValue();
 
-        if (!(op2 instanceof AbstractScanOperator) && !descOrSelfIsSourceScan(op2)) {
+        if (!(op2 instanceof AbstractScanOperator) && !descOrSelfIsUnnest(op2)) {
             return false;
         }
         // Make sure that op does not use any variables produced by op2.
@@ -79,18 +79,61 @@ public class SimpleUnnestToProductRule implements IAlgebraicRewriteRule {
         return true;
     }
 
-    private boolean descOrSelfIsSourceScan(AbstractLogicalOperator op2) {
-        // Disregard data source scans in a subplan.
+    private boolean findPlanPartition(HashSet<LogicalVariable> innerUsedVars, HashSet<LogicalVariable> outerUsedVars,
+            List<ILogicalOperator> innerOps, List<ILogicalOperator> outerOps, ILogicalOperator currentChild) throws AlgebricksException {
+        // Only descend through unary operators.
+        if (currentChild.getInputs().size() > 1) {
+            // The outer plan should be fed by currentChild.
+            outerOps.add(currentChild);
+            return true;
+        }
+        List<LogicalVariable> producedAndUsedVars = new ArrayList<LogicalVariable>();
+        VariableUtilities.getProducedVariables(currentChild, producedAndUsedVars);
+        VariableUtilities.getUsedVariables(currentChild, producedAndUsedVars);
+        boolean innerUsed = false;
+        boolean outerUsed = false;
+        for (LogicalVariable var : producedAndUsedVars) {
+            if (innerUsedVars.contains(var)) {
+                innerUsed = true;
+            }
+            if (outerUsedVars.contains(var)) {
+                outerUsed = true;
+            }
+        }
+        // Is there an op that prohibits partitioning? 
+        if (innerUsed && outerUsed) {
+            // TODO: For now we assume operators are "atomic". 
+            // We may be able to split some operators to find a viable partitioning of the plan, e.g., AssignOperators or SelectOperators.
+            return false;
+        }
+        if (innerUsed) {
+            innerUsedVars.addAll(producedAndUsedVars);
+            innerOps.add(currentChild);
+        }
+        if (outerUsed) {
+            outerUsedVars.addAll(producedAndUsedVars);
+            outerOps.add(currentChild);
+        }
+        if (currentChild.hasInputs()) {
+            return findPlanPartition(innerUsedVars, outerUsedVars, innerOps, outerOps, currentChild.getInputs().get(0).getValue());
+        }
+        // The outer plan should be fed by currentChild.
+        outerOps.add(currentChild);
+        return true;
+    }
+    
+    private boolean descOrSelfIsUnnest(AbstractLogicalOperator op2) {
+        // Disregard unnests in a subplan.
         if (op2.getOperatorTag() == LogicalOperatorTag.SUBPLAN) {
             return false;
         }
         if (op2.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN
-                && op2.getOperatorTag() != LogicalOperatorTag.UNNEST) {
+                || op2.getOperatorTag() == LogicalOperatorTag.UNNEST) {
             return true;
         }
         for (Mutable<ILogicalOperator> cRef : op2.getInputs()) {
             AbstractLogicalOperator alo = (AbstractLogicalOperator) cRef.getValue();
-            if (descOrSelfIsSourceScan(alo)) {
+            if (descOrSelfIsUnnest(alo)) {
                 return true;
             }
         }
