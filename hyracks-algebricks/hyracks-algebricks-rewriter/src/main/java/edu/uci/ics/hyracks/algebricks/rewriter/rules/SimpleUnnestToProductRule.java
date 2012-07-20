@@ -17,7 +17,6 @@ package edu.uci.ics.hyracks.algebricks.rewriter.rules;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Stack;
 
 import org.apache.commons.lang3.mutable.Mutable;
 import org.apache.commons.lang3.mutable.MutableObject;
@@ -36,6 +35,10 @@ import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.InnerJoinOp
 import edu.uci.ics.hyracks.algebricks.core.algebra.operators.logical.visitors.VariableUtilities;
 import edu.uci.ics.hyracks.algebricks.core.rewriter.base.IAlgebraicRewriteRule;
 
+/**
+ * Rewrite rule for producing joins from unnests. 
+ * This rule is limited to creating left-deep trees. 
+ */
 public class SimpleUnnestToProductRule implements IAlgebraicRewriteRule {
 
     @Override
@@ -51,91 +54,238 @@ public class SimpleUnnestToProductRule implements IAlgebraicRewriteRule {
                 && op.getOperatorTag() != LogicalOperatorTag.UNNEST) {
             return false;
         }
-
+        
+        // We follow a simple strategy of pulling selects above the join we create
+        // in order to eliminate possible dependencies between
+        // the outer and inner input plans of the join.
+        List<ILogicalOperator> topSelects = new ArrayList<ILogicalOperator>();
+        
+        // Keep track of the operators and used variables participating in the inner input plan.
+        HashSet<LogicalVariable> innerUsedVars = new HashSet<LogicalVariable>();
+        List<ILogicalOperator> innerOps = new ArrayList<ILogicalOperator>();
+        innerOps.add(op);
+        VariableUtilities.getUsedVariables(op, innerUsedVars);
+        
         Mutable<ILogicalOperator> opRef2 = op.getInputs().get(0);
         AbstractLogicalOperator op2 = (AbstractLogicalOperator) opRef2.getValue();
-        if (!descOrSelfIsUnnestOrJoin(op2)) {
-            return false;
-        }
-
-        Stack<ILogicalOperator> innerOps = new Stack<ILogicalOperator>();
-        Stack<ILogicalOperator> outerOps = new Stack<ILogicalOperator>();        
-        HashSet<LogicalVariable> innerVars = new HashSet<LogicalVariable>();
-        HashSet<LogicalVariable> outerVars = new HashSet<LogicalVariable>();        
-
-        boolean partitionFound = findPlanPartition(innerVars, outerVars, innerOps, outerOps, op2);
-        if (!partitionFound) {
+        AbstractLogicalOperator unnestOrJoin = findNextUnnestOrJoin(op2, innerUsedVars, innerOps, topSelects);
+        if (unnestOrJoin == null) {
             return false;
         }
         
-        // The original op goes at the top of the inner operator chain.
-        innerOps.push(op);
-        // Make sure the top inner op does not use any vars of the outer plan partition.
-        List<LogicalVariable> usedVars = new ArrayList<LogicalVariable>();
-        VariableUtilities.getUsedVariables(op, usedVars);
-        for (LogicalVariable usedVar : usedVars) {
-            if (outerVars.contains(usedVar)) {
+        ILogicalOperator outerRoot = null;
+        ILogicalOperator innerRoot = null;
+        EmptyTupleSourceOperator ets = new EmptyTupleSourceOperator();
+        // If we found a join, simply use it as the outer root.
+        if (unnestOrJoin.getOperatorTag() == LogicalOperatorTag.INNERJOIN
+                || unnestOrJoin.getOperatorTag() == LogicalOperatorTag.LEFTOUTERJOIN) {
+            innerRoot = buildOperatorChain(innerOps, ets, context);
+            outerRoot = unnestOrJoin;
+        } else {
+            // We've found a second unnest. First, sanity check that the unnest does not produce any vars that are used by the plan above (until the first unnest).
+            List<LogicalVariable> producedVars = new ArrayList<LogicalVariable>();
+            VariableUtilities.getProducedVariables(unnestOrJoin, producedVars);
+            for (LogicalVariable producedVar : producedVars) {
+                if (innerUsedVars.contains(producedVar)) {
+                    return false;
+                }
+            }
+            // Determine a partitioning of the plan below the second unnest such that the first and the second unnest are independent.
+            // This means that for each operator below the second unnest we should determine whether it belongs to the inner plan partition or the outer plan partition.
+            // Keep track of the operators and used variables participating in the outer input plan.
+            HashSet<LogicalVariable> outerUsedVars = new HashSet<LogicalVariable>();
+            List<ILogicalOperator> outerOps = new ArrayList<ILogicalOperator>();
+            outerOps.add(unnestOrJoin);
+            VariableUtilities.getUsedVariables(unnestOrJoin, outerUsedVars);
+            AbstractLogicalOperator unnestChild = (AbstractLogicalOperator) unnestOrJoin.getInputs().get(0).getValue();
+            if (!findPlanPartition(unnestChild, innerUsedVars, outerUsedVars, innerOps, outerOps, topSelects)) {
                 return false;
             }
+            innerRoot = buildOperatorChain(innerOps, ets, context);
+            outerRoot = buildOperatorChain(outerOps, null, context);
         }
-        
-        // Build the outer and inner operator chains that form the input for the join.
-        ILogicalOperator outerRoot = buildOperatorChain(outerOps, false, context);
-        ILogicalOperator innerRoot = buildOperatorChain(innerOps, true, context);
         
         InnerJoinOperator product = new InnerJoinOperator(
                 new MutableObject<ILogicalExpression>(ConstantExpression.TRUE));
         // Outer branch.
         product.getInputs().add(new MutableObject<ILogicalOperator>(outerRoot));
         // Inner branch.
-        product.getInputs().add(new MutableObject<ILogicalOperator>(innerRoot));
-        // Plug the product in the plan.
-        opRef.setValue(product);
-        context.computeAndSetTypeEnvironmentForOperator(product);
+        product.getInputs().add(new MutableObject<ILogicalOperator>(innerRoot));        
+        // Put the selects on top of the join.
+        ILogicalOperator topOp = product;
+        if (!topSelects.isEmpty()) {
+            topOp = buildOperatorChain(topSelects, product, context);
+        }
+        // Plug the selects + product in the plan.
+        opRef.setValue(topOp);
+        context.computeAndSetTypeEnvironmentForOperator(topOp);
         return true;
     }
 
-    private ILogicalOperator buildOperatorChain(Stack<ILogicalOperator> ops, boolean etsAsSource, IOptimizationContext context) throws AlgebricksException {
-        ILogicalOperator root = ops.pop();
+    private ILogicalOperator buildOperatorChain(List<ILogicalOperator> ops, ILogicalOperator bottomOp, IOptimizationContext context) throws AlgebricksException {
+        ILogicalOperator root = ops.get(0);
         ILogicalOperator prevOp = root;
-        while (!ops.isEmpty()) {
-            ILogicalOperator inputOp = ops.pop();
+        for (int i = 1; i < ops.size(); i++) {
+            ILogicalOperator inputOp = ops.get(i);
             prevOp.getInputs().clear();
             prevOp.getInputs().add(new MutableObject<ILogicalOperator>(inputOp));
-            prevOp = inputOp;
+            prevOp = inputOp;            
         }
-        if (etsAsSource) {
-            EmptyTupleSourceOperator ets = new EmptyTupleSourceOperator();
-            context.computeAndSetTypeEnvironmentForOperator(ets);
+        if (bottomOp != null) {
+            context.computeAndSetTypeEnvironmentForOperator(bottomOp);
             prevOp.getInputs().clear();
-            prevOp.getInputs().add(new MutableObject<ILogicalOperator>(ets));
+            prevOp.getInputs().add(new MutableObject<ILogicalOperator>(bottomOp));
         }
         return root;
     }
     
-    private boolean descOrSelfIsUnnestOrJoin(AbstractLogicalOperator op) {
-        // Disregard unnests in a subplan.
-        if (op.getOperatorTag() == LogicalOperatorTag.SUBPLAN) {
-            return false;
+    private AbstractLogicalOperator findNextUnnestOrJoin(AbstractLogicalOperator op, HashSet<LogicalVariable> innerUsedVars, List<ILogicalOperator> innerOps, List<ILogicalOperator> topSelects) throws AlgebricksException {
+        switch (op.getOperatorTag()) {
+            case SUBPLAN: {
+                // Bail on subplan.
+                return null;
+            }
+            case INNERJOIN:
+            case LEFTOUTERJOIN: {
+                // Make sure that no variables that are live under this join are needed by the inner.
+                List<LogicalVariable> liveVars = new ArrayList<LogicalVariable>();
+                VariableUtilities.getLiveVariables(op, liveVars);
+                for (LogicalVariable liveVar : liveVars) {
+                    if (innerUsedVars.contains(liveVar)) {
+                        return null;
+                    }
+                }
+                // If there is already an independent join, just return it so we can hook it up to the unnest.
+                return op;
+            }
+            case UNNEST:
+            case DATASOURCESCAN: {
+                return op;
+            }
+            case SELECT: {
+                // Remember this select to pulling it above the join.
+                topSelects.add(op);
+                break;
+            }
+            case PROJECT: {
+                // Throw away projects from the plan since we are pulling selects up.
+                break;
+            }
+            case EMPTYTUPLESOURCE: 
+            case NESTEDTUPLESOURCE: {
+                return null;
+            }
+            default: {
+                // We are still looking for the next unnest, so add current op and its used vars to the inner.
+                innerOps.add(op);
+                VariableUtilities.getUsedVariables(op, innerUsedVars);
+                break;
+            }
         }
-        if (op.getOperatorTag() == LogicalOperatorTag.DATASOURCESCAN
-                || op.getOperatorTag() == LogicalOperatorTag.UNNEST
-                || op.getInputs().size() > 1) {
-            return true;
+        if (!op.hasInputs() || op.getInputs().size() > 1) {
+            return null;
         }
-        if (op.hasInputs()) {
-            return descOrSelfIsUnnestOrJoin((AbstractLogicalOperator) op.getInputs().get(0).getValue());
-        } else {
-            return false;
-        }
+        return findNextUnnestOrJoin((AbstractLogicalOperator) op.getInputs().get(0).getValue(), innerUsedVars, innerOps, topSelects);
     }
     
-    /**
-     * Descend the operator tree looking for an UNNEST, DATASOURCESCAN or an operator with more than one input.
-     * Such an operator will be the 'source' of the outer branch of the join.
-     * We attempt to find a partitioning of the plan such that there are two independent operator chains,
-     * one for the outer and one for the inner input of the join. 
-     */
+    private boolean findPlanPartition(AbstractLogicalOperator op, HashSet<LogicalVariable> innerUsedVars, HashSet<LogicalVariable> outerUsedVars,
+            List<ILogicalOperator> innerOps, List<ILogicalOperator> outerOps, List<ILogicalOperator> topSelects) throws AlgebricksException {
+        switch (op.getOperatorTag()) {
+            case UNNEST:
+            case DATASOURCESCAN: {
+                // We may have reached this state by descending through a subplan.
+                outerOps.add(op);
+                return true;
+            }
+            case INNERJOIN:
+            case LEFTOUTERJOIN: {
+                // Make sure that no variables that are live under this join are needed by the inner.
+                List<LogicalVariable> liveVars = new ArrayList<LogicalVariable>();
+                VariableUtilities.getLiveVariables(op, liveVars);
+                for (LogicalVariable liveVar : liveVars) {
+                    if (innerUsedVars.contains(liveVar)) {
+                        return false;
+                    }
+                }
+                outerOps.add(op);
+                return true;
+            }
+            case SELECT: {
+                // Remember this select to pulling it above the join.
+                topSelects.add(op);
+                break;
+            }
+            case PROJECT: {
+                // Throw away projects from the plan since we are pulling selects up.
+                break;
+            }
+            case EMPTYTUPLESOURCE: 
+            case NESTEDTUPLESOURCE: {
+                // We have successfully partitioned the plan into independent parts to be plugged into the join.
+                return true;
+            }
+            default: {
+                List<LogicalVariable> producedVars = new ArrayList<LogicalVariable>();
+                VariableUtilities.getProducedVariables(op, producedVars);
+                if (producedVars.isEmpty()) {
+                    // TODO: We should not throw here, just for debugging.
+                    throw new AlgebricksException("No produced variables in operator of type '" + op.getOperatorTag() + "'.");
+                }
+                int outerMatches = 0;
+                int innerMatches = 0;                
+                for (LogicalVariable producedVar : producedVars) {
+                    if (outerUsedVars.contains(producedVar)) {
+                        outerMatches++;
+                    } else if (innerUsedVars.contains(producedVar)) {
+                        innerMatches++;
+                    }
+                }
+                
+                HashSet<LogicalVariable> targetUsedVars = null;
+                if (outerMatches == producedVars.size()) {
+                    // Definitely part of the outer partition.
+                    outerOps.add(op);
+                    targetUsedVars = outerUsedVars;
+                } else if (innerMatches == producedVars.size()) {
+                    // Definitely part of the inner partition.
+                    innerOps.add(op);
+                    targetUsedVars = innerUsedVars;
+                } else if (innerMatches == 0 && outerMatches == 0){
+                    // Op produces a variable that is not used in the part of the plan we've seen. Try to figure out where it belongs by analyzing the used variables.
+                    List<LogicalVariable> usedVars = new ArrayList<LogicalVariable>();
+                    VariableUtilities.getUsedVariables(op, usedVars);
+                    if (outerUsedVars.containsAll(usedVars)) {
+                        outerOps.add(op);
+                        targetUsedVars = outerUsedVars;
+                    } else if (innerUsedVars.containsAll(usedVars)) {
+                        innerOps.add(op);
+                        targetUsedVars = innerUsedVars;
+                    } else {
+                        return false;
+                    }
+                } else {
+                    // The current operator produces variables that are used by both partitions, so the inner and outer are not independent and, therefore, we cannot create a join.
+                    // TODO: We may still be able to split the operator to create a viable partitioning.
+                    return false;
+                }
+                // Update used variables of partition that op belongs to.
+                if (op.hasNestedPlans() && op.getOperatorTag() != LogicalOperatorTag.SUBPLAN) {
+                    AbstractOperatorWithNestedPlans opWithNestedPlans = (AbstractOperatorWithNestedPlans) op;
+                    opWithNestedPlans.getUsedVariablesExceptNestedPlans(targetUsedVars);
+                } else {
+                    VariableUtilities.getUsedVariables(op, targetUsedVars);
+                }
+                break;
+            }
+        }
+        if (!op.hasInputs()) {
+            // We have successfully partitioned the plan into independent parts to be plugged into the join.
+            return true;
+        }
+        return findPlanPartition((AbstractLogicalOperator) op.getInputs().get(0).getValue(), innerUsedVars, outerUsedVars, innerOps, outerOps, topSelects);
+    }
+    
+    /*
     private boolean findPlanPartition(HashSet<LogicalVariable> innerVars, HashSet<LogicalVariable> outerVars,
             Stack<ILogicalOperator> innerOps, Stack<ILogicalOperator> outerOps, AbstractLogicalOperator op) throws AlgebricksException {
         // Disregard unnests in a subplan.
@@ -195,4 +345,5 @@ public class SimpleUnnestToProductRule implements IAlgebraicRewriteRule {
             return false;
         }
     }
+    */
 }
