@@ -12,12 +12,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package edu.uci.ics.hyracks.control.nc.partitions;
+package edu.uci.ics.hyracks.yarn.am.manifest;
 
-import edu.uci.ics.hyracks.api.comm.IFrameWriter;
-import edu.uci.ics.hyracks.api.exceptions.HyracksException;
-import edu.uci.ics.hyracks.api.partitions.PartitionId;
+public class ContainerSpecification {
+    private String hostname;
 
-public interface IPartitionRequestListener {
-    public void registerPartitionRequest(PartitionId partitionId, IFrameWriter writer) throws HyracksException;
+    private int memory;
+
+    public ContainerSpecification() {
+        hostname = "*";
+    }
+
+    public void setHostname(String hostname) {
+        this.hostname = hostname;
+    }
+
+    public String getHostname() {
+        return hostname;
+    }
+
+    public void setMemory(int memory) {
+        this.memory = memory;
+    }
+
+    public int getMemory() {
+        return memory;
+    }
 }
