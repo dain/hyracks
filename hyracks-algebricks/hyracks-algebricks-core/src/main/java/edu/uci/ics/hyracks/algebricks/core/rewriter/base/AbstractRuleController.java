@@ -63,37 +63,30 @@ public abstract class AbstractRuleController {
     }
 
     private String getPlanString(Mutable<ILogicalOperator> opRef) throws AlgebricksException {
-    	if (AlgebricksConfig.ALGEBRICKS_LOGGER.isLoggable(Level.INFO)) {
-    	StringBuilder sb = new StringBuilder();
-        PlanPrettyPrinter.printOperator((AbstractLogicalOperator) opRef.getValue(), sb, pvisitor, 0);
-        return sb.toString();
-    	}
-    	return null;
+        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isLoggable(Level.FINE)) {
+            StringBuilder sb = new StringBuilder();
+            PlanPrettyPrinter.printOperator((AbstractLogicalOperator) opRef.getValue(), sb, pvisitor, 0);
+            return sb.toString();
+        }
+        return null;
     }
-    
+
     private void printRuleApplication(IAlgebraicRewriteRule rule, String beforePlan, String afterPlan)
-    		throws AlgebricksException {
-    	// TODO: Level should be fine.
-    	if (AlgebricksConfig.ALGEBRICKS_LOGGER.isLoggable(Level.INFO)) {
-    		AlgebricksConfig.ALGEBRICKS_LOGGER.info(">>>> Rule " + rule.getClass() + " fired.\n");
-    		AlgebricksConfig.ALGEBRICKS_LOGGER.info(">>>> Before plan\n" + beforePlan + "\n");
-    		AlgebricksConfig.ALGEBRICKS_LOGGER.info(">>>> After plan\n" + afterPlan + "\n");
-    	}
-    }
-    
-    private void printRuleApplication(IAlgebraicRewriteRule rule, Mutable<ILogicalOperator> opRef)
-            throws AlgebricksException {    	
-        AlgebricksConfig.ALGEBRICKS_LOGGER.info(">>>> Rule " + rule.getClass() + " fired.\n");
-        StringBuilder sb = new StringBuilder();
-        PlanPrettyPrinter.printOperator((AbstractLogicalOperator) opRef.getValue(), sb, pvisitor, 0);
-        AlgebricksConfig.ALGEBRICKS_LOGGER.info(sb.toString());    	
+            throws AlgebricksException {
+        if (AlgebricksConfig.ALGEBRICKS_LOGGER.isLoggable(Level.FINE)) {
+            AlgebricksConfig.ALGEBRICKS_LOGGER.fine(">>>> Rule " + rule.getClass() + " fired.\n");
+            AlgebricksConfig.ALGEBRICKS_LOGGER.fine(">>>> Before plan\n" + beforePlan + "\n");
+            AlgebricksConfig.ALGEBRICKS_LOGGER.fine(">>>> After plan\n" + afterPlan + "\n");
+        }
     }
 
     protected boolean rewriteOperatorRef(Mutable<ILogicalOperator> opRef, IAlgebraicRewriteRule rule,
             boolean enterNestedPlans, boolean fullDFS) throws AlgebricksException {
 
+        String preBeforePlan = getPlanString(opRef);
         if (rule.rewritePre(opRef, context)) {
-            printRuleApplication(rule, opRef);
+            String preAfterPlan = getPlanString(opRef);
+            printRuleApplication(rule, preBeforePlan, preAfterPlan);
             return true;
         }
         boolean rewritten = false;
@@ -125,12 +118,10 @@ public abstract class AbstractRuleController {
             }
         }
 
-        String beforePlan = getPlanString(opRef);
-        if (rule.rewritePost(opRef, context)) {  
-        	String afterPlan = getPlanString(opRef);
-        	if (rule.getClass().toString().equals("class edu.uci.ics.hyracks.algebricks.rewriter.rules.SimpleUnnestToProductRule")) {
-        	printRuleApplication(rule, beforePlan, afterPlan);
-        	}
+        String postBeforePlan = getPlanString(opRef);
+        if (rule.rewritePost(opRef, context)) {
+            String postAfterPlan = getPlanString(opRef);
+            printRuleApplication(rule, postBeforePlan, postAfterPlan);
             return true;
         }
 
