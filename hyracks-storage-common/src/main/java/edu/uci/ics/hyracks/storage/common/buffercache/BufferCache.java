@@ -37,9 +37,7 @@ public class BufferCache implements IBufferCacheInternal {
     private static final Logger LOGGER = Logger.getLogger(BufferCache.class.getName());
     private static final int MAP_FACTOR = 2;
 
-    private static final int MAX_VICTIMIZATION_TRY_COUNT = 5;
-    private static final int MAX_WAIT_FOR_CLEANER_THREAD_TIME = 1000 * 60;
-    private static final int MIN_CLEANED_COUNT_DIFF = 4;
+    private static final int MIN_CLEANED_COUNT_DIFF = 3;
 
     private final int maxOpenFiles;
 
@@ -111,7 +109,6 @@ public class BufferCache implements IBufferCacheInternal {
     @Override
     public ICachedPage tryPin(long dpid) throws HyracksDataException {
         pinSanityCheck(dpid);
-
         CachedPage cPage = null;
         int hash = hash(dpid);
         CacheBucket bucket = pageMap[hash];
@@ -129,22 +126,13 @@ public class BufferCache implements IBufferCacheInternal {
         } finally {
             bucket.bucketLock.unlock();
         }
-
         return cPage;
     }
 
     @Override
     public ICachedPage pin(long dpid, boolean newPage) throws HyracksDataException {
         pinSanityCheck(dpid);
-
         CachedPage cPage = findPage(dpid, newPage);
-        if (cPage == null) {
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.fine(dumpState());
-            }
-            throw new HyracksDataException("Failed to pin page " + BufferedFileHandle.getFileId(dpid) + ":"
-                    + BufferedFileHandle.getPageId(dpid) + " because all pages are pinned.");
-        }
         if (!newPage) {
             if (!cPage.valid) {
                 /*
@@ -169,7 +157,6 @@ public class BufferCache implements IBufferCacheInternal {
     }
 
     private CachedPage findPage(long dpid, boolean newPage) {
-        int victimizationTryCount = 0;
         while (true) {
             int startCleanedCount = cleanerThread.cleanedCount;
 
@@ -311,12 +298,6 @@ public class BufferCache implements IBufferCacheInternal {
                     return victim;
                 }
             }
-            /*
-             * Victimization failed -- all pages pinned? wait a bit, increment victimizationTryCount and loop around. Give up after MAX_VICTIMIZATION_TRY_COUNT trys.
-             */
-            if (++victimizationTryCount >= MAX_VICTIMIZATION_TRY_COUNT) {
-                return null;
-            }
             synchronized (cleanerThread) {
                 cleanerThread.notifyAll();
             }
@@ -329,7 +310,7 @@ public class BufferCache implements IBufferCacheInternal {
             }
             synchronized (cleanerThread.cleanNotification) {
                 try {
-                    cleanerThread.cleanNotification.wait(MAX_WAIT_FOR_CLEANER_THREAD_TIME);
+                    cleanerThread.cleanNotification.wait();
                 } catch (InterruptedException e) {
                     // Do nothing
                 }
