@@ -38,7 +38,8 @@ public class BufferCache implements IBufferCacheInternal {
     private static final int MAP_FACTOR = 2;
 
     private static final int MIN_CLEANED_COUNT_DIFF = 3;
-
+    private static final int PIN_MAX_WAIT_TIME = 50;
+    
     private final int maxOpenFiles;
 
     private final IIOManager ioManager;
@@ -310,7 +311,7 @@ public class BufferCache implements IBufferCacheInternal {
             }
             synchronized (cleanerThread.cleanNotification) {
                 try {
-                    cleanerThread.cleanNotification.wait();
+                    cleanerThread.cleanNotification.wait(PIN_MAX_WAIT_TIME);
                 } catch (InterruptedException e) {
                     // Do nothing
                 }
