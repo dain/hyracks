@@ -211,7 +211,7 @@ public class BTree implements ITreeIndex {
                 ctx.interiorFrame.setSmFlag(false);
                 // Initialize new root (leftNode becomes new root).
                 ctx.interiorFrame.setPage(leftNode);
-                ctx.interiorFrame.initBuffer((byte) (ctx.leafFrame.getLevel() + 1));
+                ctx.interiorFrame.initBuffer((byte) (ctx.interiorFrame.getLevel() + 1));
                 // Will be cleared later in unsetSmPages.
                 ctx.interiorFrame.setSmFlag(true);
                 ctx.splitKey.setLeftPage(newLeftId);
